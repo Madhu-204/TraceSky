@@ -23,7 +23,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    await login(email, selectedRole);
+    await login(email, password, selectedRole);
   };
 
   const roleOptions = [
@@ -50,11 +50,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
             </div>
 
             <h2 className="text-4xl font-extrabold tracking-tight text-white leading-[1.15] mb-6">
-              Next-Gen <br />
-              <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Climate Intelligence.</span>
+              WeatherWise <br />
+              <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">AI Dashboard.</span>
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
-              Access predictive atmospheric models, decentralized sensory matrix reports, and custom actionable advice tuned exactly to your operation.
+              Access weather forecasts, alerts, and AI-powered climate insights for your needs.
             </p>
           </div>
 
@@ -94,11 +94,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email Entry Input */}
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Corporate Identity Email</label>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Email</label>
                 <input
                   type="email"
                   autoComplete="email"
-                  placeholder="name@organization.com"
+                  placeholder="Enter your email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -109,7 +109,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
               {/* Password Entry Input */}
               <div>
                 <div className="flex justify-between mb-2">
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Access Sequence</label>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
                   <a href="#" className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-all uppercase tracking-wider">Forgot Password?</a>
                 </div>
                 <div className="relative">
@@ -133,7 +133,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
 
               {/* Functional Domain Select Grid */}
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Select Your Sector Domain</label>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Account Type</label>
                 <div className="grid grid-cols-2 gap-2.5">
                   {roleOptions.map((role) => {
                     const Icon = role.icon;
@@ -192,7 +192,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
               <button
                 type="button"
                 disabled={isLoading}
-                onClick={() => login('google@example.com', selectedRole)}
+                onClick={() => login('google@example.com', 'google', selectedRole)}
                 className="w-full bg-[#1C2345] hover:bg-[#252d4a] disabled:bg-[#1C2345] disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-3 border border-gray-700"
               >
                 <FcGoogle size={20} />

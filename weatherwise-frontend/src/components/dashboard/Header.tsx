@@ -11,6 +11,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActiveTab }) => {
   const logout = useAuthStore((state) => state.logout);
+  const user = useAuthStore((state) => state.user);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const navItems = [
@@ -97,7 +98,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActi
             <div className="w-7 h-7 rounded-full bg-slate-800 border border-blue-500/40 overflow-hidden">
               <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Avatar User" className="w-full h-full object-cover" />
             </div>
-            <span className="text-xs font-bold text-white hidden sm:inline-block">Dr. Aris Thorne</span>
+            <span className="text-xs font-bold text-white hidden sm:inline-block">
+              {user?.name || 'User'}
+            </span>
             <button
               type="button"
               onClick={(e) => {

@@ -23,7 +23,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreeToTerms) return;
-    await register(name, email, role);
+    await register(name, email, password, role);
   };
 
   return (
@@ -79,10 +79,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Full Name / Callsign</label>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Full Name</label>
                 <input
                   type="text"
-                  placeholder="Officer Alex Rivera"
+                  placeholder="Enter your full name"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -91,10 +91,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Email Identity</label>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Email</label>
                 <input
                   type="email"
-                  placeholder="alex@weatherwise.ai"
+                  placeholder="Enter your email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -103,7 +103,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Secure Password String</label>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Password</label>
                 <input
                   type="password"
                   placeholder="••••••••"
@@ -115,16 +115,16 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Primary Intent Sector</label>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Account Type</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as UserRole)}
                   className="w-full bg-[#111827] border border-gray-800 focus:border-blue-500/50 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none transition-all appearance-none"
                 >
-                  <option value="General">General / Civilian Tracking</option>
-                  <option value="Farmer">Agricultural Crop Management</option>
-                  <option value="Traveler">Transit Infrastructure Logistics</option>
-                  <option value="Officer">Civil Crisis Response Command</option>
+                  <option value="General">General</option>
+                  <option value="Farmer">Farmer</option>
+                  <option value="Traveler">Traveler</option>
+                  <option value="Officer">Officer</option>
                 </select>
               </div>
 
@@ -149,10 +149,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
                 {isLoading ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Provisioning Node Channel...
+                    Creating Account...
                   </>
                 ) : (
-                  'Create Secure Account Profile'
+                  'Sign Up'
                 )}
               </button>
             </form>
