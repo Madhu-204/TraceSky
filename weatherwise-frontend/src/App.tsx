@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -13,9 +13,25 @@ import { SettingsPage } from './pages/SettingsPage';
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const initAuth = useAuthStore((state) => state.initAuth);
   const logout = useAuthStore((state) => state.logout);
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Initialize auth on app load - check session via cookie
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
+
+  // Show loading spinner while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return authView === 'login' ? (
