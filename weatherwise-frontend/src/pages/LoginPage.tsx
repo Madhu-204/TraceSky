@@ -1,24 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../store/authStore';
 import type { UserRole } from '../types/auth.types';
 import { Shovel, Compass, ShieldAlert, ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react';
 import { WeatherIcon } from '../components/ui/WeatherIcon';
 import { FcGoogle } from 'react-icons/fc';
+import { Toast } from '../components/ui/Toast';
 
 interface LoginPageProps {
   onNavigateToRegister: () => void;
+  onNavigateToForgotPassword?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) => {
-  const { login, isLoading, error, clearError } = useAuthStore();
+export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNavigateToForgotPassword }) => {
+  const { login, googleSignIn, isLoading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('General');
   const [showPassword, setShowPassword] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const selectedRoleRef = useRef(selectedRole);
+  useEffect(() => {
+    selectedRoleRef.current = selectedRole;
+  }, [selectedRole]);
+
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: (tokenResponse) => {
+      googleSignIn(tokenResponse.access_token, selectedRoleRef.current);
+    },
+    flow: 'implicit'
+  });
 
   useEffect(() => {
     clearError();
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      setToastMessage(error);
+      setToastVisible(true);
+    }
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +109,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
               </button>
             </div>
 
+            <Toast
+              message={toastMessage}
+              type="error"
+              visible={toastVisible}
+              onClose={() => setToastVisible(false)}
+            />
+
             {error && (
               <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-xs font-medium text-red-400">
                 {error}
@@ -110,7 +141,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
               <div>
                 <div className="flex justify-between mb-2">
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
-                  <a href="#" className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-all uppercase tracking-wider">Forgot Password?</a>
+                  <button
+                    type="button"
+                    onClick={onNavigateToForgotPassword}
+                    className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-all uppercase tracking-wider"
+                  >Forgot Password?</button>
                 </div>
                 <div className="relative">
                   <input
@@ -192,7 +227,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
               <button
                 type="button"
                 disabled={isLoading}
-                onClick={() => login('google@example.com', 'google', selectedRole)}
+                onClick={() => handleGoogleLogin()}
                 className="w-full bg-[#1C2345] hover:bg-[#252d4a] disabled:bg-[#1C2345] disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-3 border border-gray-700"
               >
                 <FcGoogle size={20} />

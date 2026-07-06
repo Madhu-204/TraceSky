@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { Sidebar } from './components/dashboard/Sidebar';
 import { Header } from './components/dashboard/Header';
 import { DashboardPage } from './pages/DashboardPage';
@@ -16,8 +18,20 @@ export default function App() {
   const isLoading = useAuthStore((state) => state.isLoading);
   const initAuth = useAuthStore((state) => state.initAuth);
   const logout = useAuthStore((state) => state.logout);
-  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login');
+  const [resetToken, setResetToken] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Check for reset_token in URL params (from email link)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('reset_token');
+    if (token) {
+      setResetToken(token);
+      setAuthView('reset-password');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   // Initialize auth on app load - check session via cookie
   useEffect(() => {
@@ -34,11 +48,26 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
-    return authView === 'login' ? (
-      <LoginPage onNavigateToRegister={() => setAuthView('register')} />
-    ) : (
-      <RegisterPage onNavigateToLogin={() => setAuthView('login')} />
-    );
+    switch (authView) {
+      case 'register':
+        return <RegisterPage onNavigateToLogin={() => setAuthView('login')} />;
+      case 'forgot-password':
+        return (
+          <ForgotPasswordPage
+            onNavigateToLogin={() => setAuthView('login')}
+          />
+        );
+      case 'reset-password':
+        return (
+          <ResetPasswordPage
+            initialToken={resetToken}
+            onNavigateToLogin={() => setAuthView('login')}
+            onNavigateToForgotPassword={() => setAuthView('forgot-password')}
+          />
+        );
+      default:
+        return <LoginPage onNavigateToRegister={() => setAuthView('register')} onNavigateToForgotPassword={() => setAuthView('forgot-password')} />;
+    }
   }
 
   return (

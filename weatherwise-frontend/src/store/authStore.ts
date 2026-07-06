@@ -13,9 +13,12 @@ interface AuthState {
   error: string | null;
   initAuth: () => Promise<boolean>;
   login: (email: string, password: string, role: UserRole) => Promise<void>;
+  googleSignIn: (googleToken: string, role: UserRole) => Promise<void>;
   register: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -109,6 +112,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  googleSignIn: async (googleToken, role) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ google_token: googleToken, role })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Google Sign In failed');
+      }
+
+      set({
+        user: data.user,
+        refreshToken: data.refresh_token,
+        isAuthenticated: true,
+        isLoading: false
+      });
+
+      if (data.expires_in) {
+        setTimeout(() => {
+          get().refreshAccessToken();
+        }, (data.expires_in * 1000) - TOKEN_EXPIRY_BUFFER_MS);
+      }
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Google Sign In failed', isLoading: false });
+    }
+  },
+
   logout: async () => {
     try {
       await fetch(`${API_URL}/logout`, {
@@ -153,6 +189,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       set({ isAuthenticated: false, refreshToken: null });
       return false;
+    }
+  },
+
+  forgotPassword: async (email) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to send reset link');
+      }
+
+      set({ isLoading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to send reset link', isLoading: false });
+      throw err;
+    }
+  },
+
+  resetPassword: async (token, newPassword) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password: newPassword })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to reset password');
+      }
+
+      set({ isLoading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to reset password', isLoading: false });
+      throw err;
     }
   },
 
