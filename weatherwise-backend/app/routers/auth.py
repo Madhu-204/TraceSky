@@ -6,7 +6,7 @@ from app.schemas.auth import (
     SignUpRequest, SignUpResponse, SignInRequest, SignInResponse,
     GoogleSignInRequest, ForgotPasswordRequest, ResetPasswordRequest,
     RefreshTokenRequest, TokenRefreshResponse, LogoutResponse,
-    MessageResponse, UserResponse, ErrorResponse
+    ForgotPasswordResponse, MessageResponse, UserResponse, ErrorResponse
 )
 from app.services.auth_service import AuthService
 from app.core.security import decode_token, COOKIE_NAME, COOKIE_SECURE, COOKIE_HTTPONLY, COOKIE_SAMESITE, COOKIE_MAX_AGE
@@ -130,11 +130,11 @@ def signin(body: SignInRequest, http_request: Request, response: Response, db: S
 
 
 @router.post("/google", response_model=SignInResponse)
-def google_signin(body: GoogleSignInRequest, http_request: Request, response: Response, db: Session = Depends(get_db)):
+async def google_signin(body: GoogleSignInRequest, http_request: Request, response: Response, db: Session = Depends(get_db)):
     """Sign in with Google OAuth."""
     auth_service = AuthService(db)
 
-    user, error = auth_service.google_signin(body.google_token)
+    user, error = await auth_service.google_signin(body.google_token, body.role.value if body.role else None)
 
     if error:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=error)
@@ -190,7 +190,7 @@ def refresh_token(request: RefreshTokenRequest, response: Response, db: Session 
     )
 
 
-@router.post("/forgot-password", response_model=MessageResponse)
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
 def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """Request password reset."""
     auth_service = AuthService(db)
@@ -198,7 +198,9 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
     # Always return success to prevent email enumeration
     auth_service.forgot_password(request.email)
 
-    return MessageResponse(message="If the email exists, a reset link has been sent")
+    return ForgotPasswordResponse(
+        message="If the email exists, a reset link has been sent"
+    )
 
 
 @router.post("/reset-password", response_model=MessageResponse)

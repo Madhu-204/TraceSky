@@ -120,6 +120,13 @@ class TokenRefreshResponse(BaseModel):
     expires_in: int = 900
 
 
+class ForgotPasswordResponse(BaseModel):
+    """Response schema for forgot password."""
+    message: str
+    reset_token: Optional[str] = None
+    reset_url: Optional[str] = None
+
+
 class MessageResponse(BaseModel):
     """Generic message response."""
     message: str

@@ -1,6 +1,6 @@
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,8 @@ from app.core.security import (
     create_access_token, create_refresh_token, decode_token,
     ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 )
-from app.core.google_oauth import verify_google_id_token
+from app.core.google_oauth import verify_google_token
+from app.core.email import send_password_reset_email
 
 
 class AuthService:
@@ -72,18 +73,19 @@ class AuthService:
 
         return UserResponse.from_orm_with_role(user), None
 
-    def google_signin(self, google_token: str) -> Tuple[Optional[UserResponse], Optional[str]]:
+    async def google_signin(self, google_token: str, role: Optional[str] = None) -> Tuple[Optional[UserResponse], Optional[str]]:
         """
         Authenticate user with Google.
+
+        Args:
+            google_token: Google OAuth access token or ID token
+            role: User-selected role for new accounts (Farmer, Traveler, Officer, General)
 
         Returns:
             Tuple of (UserResponse, error_message)
         """
-        import asyncio
         # Verify Google token
-        google_user = asyncio.get_event_loop().run_until_complete(
-            verify_google_id_token(google_token)
-        )
+        google_user = await verify_google_token(google_token)
 
         if not google_user:
             return None, "Invalid Google token"
@@ -99,9 +101,9 @@ class AuthService:
             # Create new user with Google
             user = User(
                 email=email,
-                password_hash=None,  # No password for Google users
+                password_hash=None,
                 name=name,
-                role=UserRole.GENERAL.value,
+                role=role or UserRole.GENERAL.value,
                 tier=SubscriptionTier.FREE.value,
                 auth_provider="google",
                 google_id=google_id,
@@ -144,7 +146,7 @@ class AuthService:
             token_jti=refresh_token_jti,
             user_agent=user_agent,
             ip_address=ip_address,
-            expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+            expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
         )
 
         self.db.add(refresh_token_db)
@@ -185,7 +187,7 @@ class AuthService:
         if stored_token.is_revoked:
             return None, "Refresh token has been revoked"
 
-        if stored_token.expires_at < datetime.utcnow():
+        if stored_token.expires_at < datetime.now(timezone.utc):
             return None, "Refresh token has expired"
 
         # Get user
@@ -207,18 +209,18 @@ class AuthService:
 
         return tokens, None
 
-    def forgot_password(self, email: str) -> Tuple[bool, Optional[str]]:
+    def forgot_password(self, email: str) -> Tuple[bool, Optional[str], Optional[str]]:
         """
         Request password reset.
 
         Returns:
-            Tuple of (success, error_message)
+            Tuple of (success, error_message, reset_token)
         """
         user = self.db.query(User).filter(User.email == email).first()
 
         # Always return success to prevent email enumeration
         if not user or user.auth_provider != "email":
-            return True, None
+            return True, None, None
 
         # Generate reset token
         token = secrets.token_urlsafe(32)
@@ -230,18 +232,17 @@ class AuthService:
             user_id=user.id,
             token_hash=token_hash,
             token_jti=token_jti,
-            expires_at=datetime.utcnow() + timedelta(minutes=15)
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=15)
         )
 
         self.db.add(reset_token)
         self.db.commit()
 
-        # In production, send email with reset link
-        # For now, we return the token in response (development only!)
-        # print(f"Password reset token: {token}")
-        # TODO: Send email
+        # Send reset email
+        reset_url = f"http://localhost:5173?reset_token={token}"
+        send_password_reset_email(email, reset_url)
 
-        return True, None
+        return True, None, token
 
     def reset_password(self, token: str, new_password: str) -> Tuple[bool, Optional[str]]:
         """
@@ -262,7 +263,7 @@ class AuthService:
         if stored_token.is_used:
             return False, "Reset token has already been used"
 
-        if stored_token.expires_at < datetime.utcnow():
+        if stored_token.expires_at < datetime.now(timezone.utc):
             return False, "Reset token has expired"
 
         # Get user
