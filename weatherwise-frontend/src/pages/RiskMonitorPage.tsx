@@ -1,68 +1,64 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { RiskAlertsPanel } from '../components/risk/RiskAlertsPanel';
 import { GeospatialCanvas } from '../components/risk/GeospatialCanvas';
-import type { RiskAlert, DayMatrixPoint } from '../types/risk.types';
+import { useAIStore } from '../store/aiStore';
+import { useLocationStore } from '../store/locationStore';
+import type { DayMatrixPoint } from '../types/risk.types';
+
+const severityColorMap: Record<string, 'emerald' | 'amber' | 'blue'> = {
+  Low: 'emerald',
+  Moderate: 'amber',
+  High: 'blue',
+};
+
+const typeMap: Record<string, 'FLOOD' | 'STORM' | 'HEAT' | 'LIGHTNING'> = {
+  flood: 'FLOOD',
+  storm: 'STORM',
+  heat: 'HEAT',
+};
 
 export const RiskMonitorPage: React.FC = () => {
-  // Datasets tailored to explicitly mirror the entries on screen 6
-  const liveRiskAlerts: RiskAlert[] = [
-    {
-      id: 'alert-1',
-      type: 'FLOOD',
-      badgeText: 'Severe Flood',
-      timestamp: '12m ago',
-      title: 'South Coastal Basin',
-      description: 'Extreme precipitation causing 40% overflow risk at Dam Delta-4. Immediate evacuation recommended for Zone B.',
-      metaTags: ['SF', 'JD'],
-      statusText: 'Monitoring Active',
-      statusColor: 'amber',
-    },
-    {
-      id: 'alert-2',
-      type: 'STORM',
-      badgeText: 'Storm Warning',
-      timestamp: '1h 04m ago',
-      title: 'Northwestern Ridge',
-      description: 'Wind speeds reaching 85km/h. Structural damage risk moderate. Monitoring secondary convective cells.',
-      statusText: 'Monitoring Active',
-      statusColor: 'amber',
-    },
-    {
-      id: 'alert-3',
-      type: 'HEAT',
-      badgeText: 'Elevated Heat',
-      timestamp: '3h ago',
-      title: 'Central Metro Area',
-      description: 'Heat index 42°C. Grid strain expected between 14:00 - 18:00 local time.',
-      statusText: 'Status: Stable',
-      statusColor: 'emerald',
-    },
-    {
-      id: 'alert-4',
-      type: 'LIGHTNING',
-      badgeText: 'Lightning Observed',
-      timestamp: 'Just now',
-      title: 'Eastern Sector',
-      description: 'Low frequency atmospheric discharges detected. No immediate risk reported.',
-      statusText: 'No Action Required',
-      statusColor: 'emerald',
-    }
-  ];
+  const { risks, isLoading, fetchRisks } = useAIStore();
+  const { currentLocation } = useLocationStore();
+  const city = currentLocation?.city;
+  const lat = city?.lat ?? 37.7749;
+  const lon = city?.lon ?? -122.4194;
 
-  const timelinePoints: DayMatrixPoint[] = [
-    { day: 'MON', critical: 15, warning: 30, stable: 55 },
-    { day: 'TUE', critical: 40, warning: 35, stable: 25, hasPeak: true },
-    { day: 'WED', critical: 10, warning: 20, stable: 70 },
-    { day: 'THU', critical: 5, warning: 15, stable: 80 },
-    { day: 'FRI', critical: 25, warning: 25, stable: 50 },
-    { day: 'SAT', critical: 30, warning: 40, stable: 30 },
-    { day: 'SUN', critical: 8, warning: 12, stable: 80 }
-  ];
+  useEffect(() => {
+    fetchRisks(lat, lon);
+  }, [lat, lon]);
+
+  const riskAlerts = risks.map((r) => ({
+    id: r.id,
+    type: typeMap[r.id] || 'LIGHTNING',
+    badgeText: `${r.severity} ${r.name}`,
+    timestamp: 'Live',
+    title: r.name,
+    description: r.detail,
+    statusText: r.severity === 'High' ? 'Action Required' : 'Monitoring Active',
+    statusColor: severityColorMap[r.severity] || 'emerald',
+  }));
+
+  const timelinePoints: DayMatrixPoint[] = (risks.length > 0
+    ? [
+        { day: 'RISK 1', critical: risks[0]?.percentage ?? 0, warning: Math.max(0, 100 - (risks[0]?.percentage ?? 0)), stable: Math.max(0, 50) },
+        { day: 'RISK 2', critical: risks[1]?.percentage ?? 0, warning: Math.max(0, 100 - (risks[1]?.percentage ?? 0)), stable: Math.max(0, 50) },
+        { day: 'RISK 3', critical: risks[2]?.percentage ?? 0, warning: Math.max(0, 100 - (risks[2]?.percentage ?? 0)), stable: Math.max(0, 50) },
+      ]
+    : [
+        { day: 'MON', critical: 15, warning: 30, stable: 55 },
+        { day: 'TUE', critical: 40, warning: 35, stable: 25, hasPeak: true },
+        { day: 'WED', critical: 10, warning: 20, stable: 70 },
+        { day: 'THU', critical: 5, warning: 15, stable: 80 },
+        { day: 'FRI', critical: 25, warning: 25, stable: 50 },
+        { day: 'SAT', critical: 30, warning: 40, stable: 30 },
+        { day: 'SUN', critical: 8, warning: 12, stable: 80 },
+      ]
+  );
 
   return (
     <div className="pt-20 pb-6 px-4 sm:px-6 lg:px-8 space-y-5 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all flex flex-col">
 
-      {/* SECTION 1: Page Header Meta Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h2 className="text-xl font-extrabold text-white tracking-tight">Active Risk Alerts</h2>
@@ -70,10 +66,17 @@ export const RiskMonitorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 2: Split View Workspace Layout */}
       <div className="flex flex-col lg:flex-row gap-6 flex-1 items-stretch">
-        <RiskAlertsPanel alerts={liveRiskAlerts} />
-        <GeospatialCanvas timelineData={timelinePoints} />
+        {isLoading && risks.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center bg-[#0E1328] border border-[#1C2345] rounded-2xl">
+            <p className="text-gray-500 text-sm">Loading risk telemetry...</p>
+          </div>
+        ) : (
+          <>
+            <RiskAlertsPanel alerts={riskAlerts} />
+            <GeospatialCanvas timelineData={timelinePoints} />
+          </>
+        )}
       </div>
 
     </div>

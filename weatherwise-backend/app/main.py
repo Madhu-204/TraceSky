@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import auth
+from app.routers import auth, weather, ai
 from app.core.security import CORS_ORIGINS
 
 # Create FastAPI app
@@ -29,6 +29,8 @@ def startup_event():
 
 # Include routers
 app.include_router(auth.router)
+app.include_router(weather.router)
+app.include_router(ai.router)
 
 
 # Root endpoint

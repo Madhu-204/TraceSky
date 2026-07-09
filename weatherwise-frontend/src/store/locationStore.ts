@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { City, LocationData, UserLocationPreferences, POPULAR_CITIES } from '../types/location.types';
+import type { City, LocationData, UserLocationPreferences } from '../types/location.types';
+import { POPULAR_CITIES } from '../types/location.types';
 
 interface LocationState extends UserLocationPreferences {
   currentLocation: LocationData | null;
