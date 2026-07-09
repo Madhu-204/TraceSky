@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { RiskAlert, HistoricalComparison, MetricItem } from '../services/aiService';
 import * as aiService from '../services/aiService';
 import type { AssistantMessage } from '../types/assistant.types';
+import type { ExpertAnalysis, ExpertRisk, ExpertRecommendation } from '../types/expert.types';
+import type { RiskMonitorReport } from '../types/riskMonitor.types';
 
 export interface SuggestionToken {
   id: string;
@@ -26,11 +28,23 @@ interface AIState {
   isLoading: boolean;
   error: string | null;
 
+  // Expert analysis
+  expertAnalysis: ExpertAnalysis | null;
+  isExpertLoading: boolean;
+  expertError: string | null;
+
+  // Risk monitor expert report
+  riskMonitorReport: RiskMonitorReport | null;
+  isRiskMonitorLoading: boolean;
+  riskMonitorError: string | null;
+
   fetchRisks: (lat: number, lon: number) => Promise<void>;
   fetchRecommendations: (lat: number, lon: number) => Promise<void>;
   fetchHistoricalComparison: (lat: number, lon: number) => Promise<void>;
   fetchFarmSuggestions: (lat: number, lon: number) => Promise<void>;
   fetchSolarSuggestions: (lat: number, lon: number) => Promise<void>;
+  fetchExpertAnalysis: (lat: number, lon: number) => Promise<void>;
+  fetchRiskMonitor: (lat: number, lon: number) => Promise<void>;
   sendMessage: (lat: number, lon: number, text: string) => Promise<void>;
   clearMessages: () => void;
   clearError: () => void;
@@ -43,6 +57,13 @@ export const useAIStore = create<AIState>((set) => ({
   historicalComparison: null,
   farmSuggestions: [],
   solarSuggestions: [],
+  expertAnalysis: null,
+  isExpertLoading: false,
+  expertError: null,
+
+  riskMonitorReport: null,
+  isRiskMonitorLoading: false,
+  riskMonitorError: null,
   messages: [
     {
       id: 'msg-init',
@@ -98,6 +119,32 @@ export const useAIStore = create<AIState>((set) => ({
       set({ solarSuggestions: data });
     } catch {
       // Silently fail
+    }
+  },
+
+  fetchExpertAnalysis: async (lat, lon) => {
+    set({ isExpertLoading: true, expertError: null });
+    try {
+      const data = await aiService.getExpertAnalysis(lat, lon);
+      set({ expertAnalysis: data, isExpertLoading: false });
+    } catch (err) {
+      set({
+        expertError: err instanceof Error ? err.message : 'Failed to fetch expert analysis',
+        isExpertLoading: false,
+      });
+    }
+  },
+
+  fetchRiskMonitor: async (lat, lon) => {
+    set({ isRiskMonitorLoading: true, riskMonitorError: null });
+    try {
+      const data = await aiService.getRiskMonitor(lat, lon);
+      set({ riskMonitorReport: data, isRiskMonitorLoading: false });
+    } catch (err) {
+      set({
+        riskMonitorError: err instanceof Error ? err.message : 'Failed to fetch risk monitor report',
+        isRiskMonitorLoading: false,
+      });
     }
   },
 

@@ -86,3 +86,29 @@ async def solar_suggestions(
         return {"success": True, "data": result}
     finally:
         await svc.close()
+
+
+@router.get("/expert-analysis")
+async def expert_analysis(
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
+):
+    svc = AIService()
+    try:
+        result = await svc.get_expert_analysis(lat, lon)
+        return {"success": True, "data": result}
+    finally:
+        await svc.close()
+
+
+@router.get("/risk-monitor")
+async def risk_monitor(
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
+):
+    svc = AIService()
+    try:
+        result = await svc.get_risk_monitor(lat, lon)
+        return {"success": True, "data": result}
+    finally:
+        await svc.close()

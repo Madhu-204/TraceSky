@@ -112,6 +112,20 @@ export async function getSolarSuggestions(lat: number, lon: number): Promise<str
 
 const SESSION_ID = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+export async function getExpertAnalysis(lat: number, lon: number): Promise<import('../types/expert.types').ExpertAnalysis> {
+  const resp = await fetchJson<ApiResponse<import('../types/expert.types').ExpertAnalysis>>(
+    `${AI_BASE}/expert-analysis?lat=${lat}&lon=${lon}`
+  );
+  return resp.data;
+}
+
+export async function getRiskMonitor(lat: number, lon: number): Promise<import('../types/riskMonitor.types').RiskMonitorReport> {
+  const resp = await fetchJson<ApiResponse<import('../types/riskMonitor.types').RiskMonitorReport>>(
+    `${AI_BASE}/risk-monitor?lat=${lat}&lon=${lon}`
+  );
+  return resp.data;
+}
+
 export async function chatWithAI(
   lat: number,
   lon: number,

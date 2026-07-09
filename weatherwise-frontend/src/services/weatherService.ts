@@ -46,10 +46,28 @@ export interface DailyForecast {
   sunset: string | null;
 }
 
+export interface HistoricalHourly {
+  time: string;
+  iso_time: string;
+  is_today: boolean;
+  temperature: number | null;
+  precipitation_probability: number;
+  weather_code: number;
+  condition: string;
+  icon: string;
+  wind_speed: number | null;
+  wind_direction: number | null;
+  uv_index: number | null;
+  humidity: number | null;
+  pressure: number | null;
+  confidence: string;
+}
+
 export interface ForecastData {
   current: CurrentWeather;
   hourly: HourlyForecast[];
   daily: DailyForecast[];
+  historical_hourly: HistoricalHourly[];
   location: {
     latitude: number;
     longitude: number;
