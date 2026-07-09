@@ -42,6 +42,29 @@ export interface GraphConfig {
   icon?: string;
 }
 
+export interface ExpertTraceCondition {
+  fact: string;
+  actual: unknown;
+  expected: string;
+  operator: string;
+  matched: boolean;
+}
+
+export interface ExpertTraceRule {
+  rule_id: string;
+  description: string;
+  certainty: number;
+  conditions: ExpertTraceCondition[];
+}
+
+export interface ExpertTrace {
+  fired_rules: ExpertTraceRule[];
+  rules_evaluated: number;
+  rules_fired: number;
+  execution_time_ms: number;
+  overall_certainty: number;
+}
+
 export interface ChatResponse {
   response: string;
   graph?: GraphConfig | null;
@@ -51,6 +74,7 @@ export interface ChatResponse {
   suggestions?: string[];
   intents?: string[];
   entities?: Record<string, unknown>;
+  expert_trace?: ExpertTrace | null;
 }
 
 export interface HistoricalComparison {

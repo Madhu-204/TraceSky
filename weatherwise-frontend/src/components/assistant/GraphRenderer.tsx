@@ -53,7 +53,8 @@ function RiskGauge({ value = 0, severity, title }: { value: number; severity?: s
 
 function ComparisonBars({ datasets }: { datasets: GraphConfig['datasets'] }) {
   if (!datasets || datasets.length === 0) return null;
-  const maxVal = Math.max(...datasets.flatMap((d) => [d.current, d.historical]), 1);
+  const numbers = datasets.flatMap((d) => [d.current, d.historical].filter((v): v is number => v !== null && v !== undefined && v > 0));
+  const maxVal = Math.max(...numbers, 1);
 
   return (
     <div className="space-y-3">
@@ -71,14 +72,18 @@ function ComparisonBars({ datasets }: { datasets: GraphConfig['datasets'] }) {
               </div>
               <div className="flex items-center justify-between text-[10px]">
                 <span className="text-gray-500 font-mono">Last Yr</span>
-                <span className="text-gray-400 font-mono">{d.historical}</span>
+                <span className="text-gray-400 font-mono">{d.historical ?? '--'}</span>
               </div>
-              <div className="w-full h-1.5 bg-[#151B33] rounded-full overflow-hidden">
-                <div className="h-full bg-gray-600 rounded-full" style={{ width: `${(d.historical / maxVal) * 100}%` }} />
-              </div>
-              <span className={`text-[9px] font-mono ${d.change_pct > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                {d.change_pct > 0 ? '+' : ''}{d.change_pct}%
-              </span>
+              {d.historical != null && (
+                <div className="w-full h-1.5 bg-[#151B33] rounded-full overflow-hidden">
+                  <div className="h-full bg-gray-600 rounded-full" style={{ width: `${(d.historical / maxVal) * 100}%` }} />
+                </div>
+              )}
+              {d.historical != null && d.change_pct != null && (
+                <span className={`text-[9px] font-mono ${d.change_pct > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {d.change_pct > 0 ? '+' : ''}{d.change_pct}%
+                </span>
+              )}
             </div>
           </div>
         ))}

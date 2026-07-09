@@ -13,7 +13,7 @@ interface ForecastChartProps {
 export const ForecastChart: React.FC<ForecastChartProps> = ({
   data, activeRange, onRangeChange, averageConfidence, averageDeviation,
 }) => {
-  const ranges = ['24H', '7D', '30D', '3M'];
+  const ranges = ['24H', '7D'];
 
   return (
     <div className="bg-[#0E1328] border border-[#1C2345] p-6 rounded-2xl space-y-6 relative">

@@ -1,22 +1,35 @@
 import { create } from 'zustand';
 import type { RiskAlert, HistoricalComparison, MetricItem } from '../services/aiService';
 import * as aiService from '../services/aiService';
-import type { AssistantMessage } from '../types/assistant.types';
+import type { AssistantMessage, ExpertTrace, SuggestionToken } from '../types/assistant.types';
 import type { ExpertAnalysis, ExpertRisk, ExpertRecommendation } from '../types/expert.types';
 import type { RiskMonitorReport } from '../types/riskMonitor.types';
 
-export interface SuggestionToken {
-  id: string;
-  label: string;
-  iconType: 'flood' | 'farm' | 'cyclone' | 'solar';
-}
+function generateDynamicTokens(risks: RiskAlert[]): SuggestionToken[] {
+  const tokens: SuggestionToken[] = [
+    { id: 'tok-q1', label: 'What is the weather now?', iconType: 'general' },
+    { id: 'tok-q2', label: 'What is the forecast?', iconType: 'forecast' },
+  ];
+  const hasFlood = risks.some((r) => r.id === 'flood');
+  const hasStorm = risks.some((r) => r.id === 'storm');
+  const hasHeat = risks.some((r) => r.id === 'heat');
 
-const suggestionTokens: SuggestionToken[] = [
-  { id: 'tok-1', label: 'Flood risk?', iconType: 'flood' },
-  { id: 'tok-2', label: 'Best time to farm?', iconType: 'farm' },
-  { id: 'tok-3', label: 'Compare to last year', iconType: 'cyclone' },
-  { id: 'tok-4', label: 'Solar efficiency', iconType: 'solar' },
-];
+  if (hasFlood) tokens.push({ id: 'tok-d1', label: 'Flood risk?', iconType: 'flood' });
+  else tokens.push({ id: 'tok-d1', label: 'Any flood risk?', iconType: 'flood' });
+
+  if (hasStorm) tokens.push({ id: 'tok-d2', label: 'Storm risk?', iconType: 'cyclone' });
+  else tokens.push({ id: 'tok-d2', label: 'Any storm risk?', iconType: 'cyclone' });
+
+  if (hasHeat) tokens.push({ id: 'tok-d3', label: 'Heat risk?', iconType: 'flood' });
+
+  tokens.push(
+    { id: 'tok-trend', label: 'Weather trend?', iconType: 'cyclone' },
+    { id: 'tok-farm', label: 'Best time to farm?', iconType: 'farm' },
+    { id: 'tok-solar', label: 'Solar efficiency?', iconType: 'solar' },
+  );
+
+  return tokens;
+}
 
 interface AIState {
   risks: RiskAlert[];
@@ -28,15 +41,15 @@ interface AIState {
   isLoading: boolean;
   error: string | null;
 
-  // Expert analysis
   expertAnalysis: ExpertAnalysis | null;
   isExpertLoading: boolean;
   expertError: string | null;
 
-  // Risk monitor expert report
   riskMonitorReport: RiskMonitorReport | null;
   isRiskMonitorLoading: boolean;
   riskMonitorError: string | null;
+
+  suggestionTokens: SuggestionToken[];
 
   fetchRisks: (lat: number, lon: number) => Promise<void>;
   fetchRecommendations: (lat: number, lon: number) => Promise<void>;
@@ -51,7 +64,7 @@ interface AIState {
   getSuggestionTokens: () => SuggestionToken[];
 }
 
-export const useAIStore = create<AIState>((set) => ({
+export const useAIStore = create<AIState>((set, get) => ({
   risks: [],
   recommendations: [],
   historicalComparison: null,
@@ -69,17 +82,26 @@ export const useAIStore = create<AIState>((set) => ({
       id: 'msg-init',
       sender: 'assistant',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: 'Hello! I\'m your WeatherWise Intelligence Assistant. I can help you interpret complex atmospheric data, assess regional risks, or plan your operations based on hyper-local forecasts. How can I assist you today?',
+      text: 'Welcome to WeatherWise! I\'m your weather intelligence assistant. I use an expert system with over 50 rules to analyze weather data in real time.\n\nYou can ask me about:\n  • Current weather conditions\n  • Flood, storm, or heat risks\n  • Forecasts and outlooks\n  • Historical comparisons\n  • Farming advice\n  • Solar energy planning\n\nWhat would you like to know about your local weather?',
     },
   ],
   isLoading: false,
   error: null,
 
+  suggestionTokens: [
+    { id: 'tok-q1', label: 'What is the weather now?', iconType: 'general' },
+    { id: 'tok-q2', label: 'What is the forecast?', iconType: 'forecast' },
+    { id: 'tok-1', label: 'Flood risk?', iconType: 'flood' },
+    { id: 'tok-trend', label: 'Weather trend?', iconType: 'cyclone' },
+    { id: 'tok-farm', label: 'Best time to farm?', iconType: 'farm' },
+    { id: 'tok-solar', label: 'Solar efficiency?', iconType: 'solar' },
+  ],
+
   fetchRisks: async (lat, lon) => {
     set({ isLoading: true, error: null });
     try {
       const data = await aiService.getRisks(lat, lon);
-      set({ risks: data, isLoading: false });
+      set({ risks: data, suggestionTokens: generateDynamicTokens(data), isLoading: false });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to fetch risks', isLoading: false });
     }
@@ -163,7 +185,6 @@ export const useAIStore = create<AIState>((set) => ({
       let metricsData: AssistantMessage['metricsData'] | undefined;
       const activeRisks = (data.risks || []).filter((r) => r.severity !== 'Low');
 
-      // Build metricsData from new graph/metrics format
       if (data.metrics) {
         const metricsArr = Object.values(data.metrics) as MetricItem[];
         metricsData = {
@@ -185,6 +206,8 @@ export const useAIStore = create<AIState>((set) => ({
         };
       }
 
+      const expertTrace: ExpertTrace | undefined = data.expert_trace ?? undefined;
+
       const assistantMsg: AssistantMessage = {
         id: `ai-${Date.now()}`,
         sender: 'assistant',
@@ -192,10 +215,16 @@ export const useAIStore = create<AIState>((set) => ({
         text: data.response,
         graph: data.graph || undefined,
         metrics: data.metrics || undefined,
+        expert_trace: expertTrace,
         hasMetricsCard: !!metricsData,
         metricsData,
       };
-      set((state) => ({ messages: [...state.messages, assistantMsg], isLoading: false }));
+      set((state) => ({
+        messages: [...state.messages, assistantMsg],
+        isLoading: false,
+        risks: data.risks || state.risks,
+        suggestionTokens: generateDynamicTokens(data.risks || state.risks),
+      }));
     } catch (err) {
       const errorMsg: AssistantMessage = {
         id: `err-${Date.now()}`,
@@ -214,7 +243,7 @@ export const useAIStore = create<AIState>((set) => ({
           id: 'msg-clear',
           sender: 'assistant',
           timestamp: 'Just now',
-          text: 'Chat logs purged. Session re-initialized safely. How can I assist you with regional weather telemetry parameters now?',
+          text: 'Chat cleared. I\'m ready to help with any weather questions you have!',
         },
       ],
     });
@@ -222,5 +251,5 @@ export const useAIStore = create<AIState>((set) => ({
 
   clearError: () => set({ error: null }),
 
-  getSuggestionTokens: () => suggestionTokens,
+  getSuggestionTokens: () => get().suggestionTokens,
 }));

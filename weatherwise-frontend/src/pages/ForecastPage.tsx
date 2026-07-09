@@ -9,7 +9,7 @@ import { useLocationStore } from '../store/locationStore';
 import type { ChartDatapoint, HourlyTelemetry } from '../types/forecast.types';
 import { Cpu } from 'lucide-react';
 
-const RANGE_HOURS: Record<string, number> = { '24H': 24, '7D': 168, '30D': 720, '3M': 2160 };
+const RANGE_HOURS: Record<string, number> = { '24H': 24, '7D': 168 };
 
 const WIND_DIRECTIONS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
 
@@ -88,9 +88,6 @@ export const ForecastPage: React.FC = () => {
     setActiveRange(range);
   };
 
-  const maxDataHours = hourlyData.length;
-  const isRangeAvailable = RANGE_HOURS[activeRange] <= maxDataHours || activeRange === '24H';
-
   const avgConf = forecastValidation?.average_confidence ?? 0;
   const totalHoursAvailable = hourlyData.length;
 
@@ -109,7 +106,7 @@ export const ForecastPage: React.FC = () => {
         <div>
           <h2 className="text-xl font-extrabold text-white tracking-tight">Atmospheric Forecast</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Expert-validated predictive modeling with historical cross-reference.
+            Expert-validated 7-day forecast with historical cross-reference.
           </p>
         </div>
         {forecastValidation && (
