@@ -1,6 +1,6 @@
 import httpx
 from typing import Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.cache import get_cache, set_cache
 
@@ -100,21 +100,25 @@ class WeatherService:
             print(f"Weather fetch error: {e}")
             return None
 
-    async def get_forecast(self, lat: float, lon: float, days: int = 7) -> Optional[dict]:
-        cache_key = f"weather:forecast:{lat:.2f}:{lon:.2f}:{days}"
+    async def get_forecast(self, lat: float, lon: float, days: int = 7, include_past: bool = True) -> Optional[dict]:
+        cache_key = f"weather:forecast:{lat:.2f}:{lon:.2f}:{days}:past={include_past}"
         cached = get_cache(cache_key)
         if cached:
             return cached
 
         try:
-            resp = await self.client.get(OPEN_METEO_FORECAST_URL, params={
+            params = {
                 "latitude": lat, "longitude": lon,
                 "current": CURRENT_PARAMS,
                 "hourly": HOURLY_PARAMS,
                 "daily": DAILY_PARAMS,
                 "timezone": "auto",
                 "forecast_days": days,
-            })
+            }
+            if include_past:
+                params["past_days"] = 1
+
+            resp = await self.client.get(OPEN_METEO_FORECAST_URL, params=params)
             if resp.status_code != 200:
                 return None
 
@@ -124,6 +128,24 @@ class WeatherService:
             return result
         except Exception as e:
             print(f"Forecast fetch error: {e}")
+            return None
+
+    async def get_historical_hourly(self, lat: float, lon: float) -> Optional[list[dict]]:
+        cache_key = f"weather:historical_hourly:{lat:.2f}:{lon:.2f}"
+        cached = get_cache(cache_key)
+        if cached:
+            return cached
+
+        try:
+            forecast = await self.get_forecast(lat, lon, days=1, include_past=True)
+            if not forecast:
+                return None
+            result = forecast.get("historical_hourly", [])
+            if result:
+                set_cache(cache_key, result, expire=3600)
+            return result
+        except Exception as e:
+            print(f"Historical hourly fetch error: {e}")
             return None
 
     async def get_historical(self, lat: float, lon: float, start_date: date, end_date: date) -> Optional[dict]:
@@ -167,6 +189,8 @@ class WeatherService:
         daily = raw.get("daily", {})
 
         now = datetime.now()
+        today = now.date()
+        yesterday = today - timedelta(days=1)
 
         current_weather = {
             "temperature": current.get("temperature_2m"),
@@ -181,16 +205,18 @@ class WeatherService:
         }
 
         hourly_rows = []
+        historical_hourly = []
         times = hourly.get("time", [])
         for i in range(len(times)):
             code = hourly.get("weather_code", [0])[i] if i < len(hourly.get("weather_code", [])) else 0
             precip = hourly.get("precipitation_probability", [0])[i] if i < len(hourly.get("precipitation_probability", [])) else 0
             time_str = times[i]
             dt = datetime.fromisoformat(time_str) if isinstance(time_str, str) else now
-            hourly_rows.append({
+
+            row = {
                 "time": dt.strftime("%H:%M") if isinstance(dt, datetime) else time_str,
                 "iso_time": time_str,
-                "is_today": dt.date() == now.date() if isinstance(dt, datetime) else True,
+                "is_today": dt.date() == today if isinstance(dt, datetime) else True,
                 "temperature": hourly.get("temperature_2m", [])[i] if i < len(hourly.get("temperature_2m", [])) else None,
                 "precipitation_probability": precip,
                 "weather_code": code,
@@ -202,14 +228,22 @@ class WeatherService:
                 "humidity": hourly.get("relative_humidity_2m", [])[i] if i < len(hourly.get("relative_humidity_2m", [])) else None,
                 "pressure": hourly.get("pressure_msl", [])[i] if i < len(hourly.get("pressure_msl", [])) else None,
                 "confidence": map_confidence(precip),
-            })
+            }
+
+            if isinstance(dt, datetime) and dt.date() == yesterday:
+                historical_hourly.append(row)
+            else:
+                hourly_rows.append(row)
 
         daily_rows = []
         day_times = daily.get("time", [])
         day_names = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
         for i in range(len(day_times)):
+            time_str = day_times[i]
+            dt = datetime.fromisoformat(time_str) if isinstance(time_str, str) else now
+            if isinstance(dt, datetime) and dt.date() < today:
+                continue
             code = daily.get("weather_code", [0])[i] if i < len(daily.get("weather_code", [])) else 0
-            dt = datetime.fromisoformat(day_times[i]) if isinstance(day_times[i], str) else now
             daily_rows.append({
                 "date": day_times[i],
                 "day": day_names[dt.weekday()] if isinstance(dt, datetime) else day_times[i],
@@ -230,6 +264,7 @@ class WeatherService:
             "current": current_weather,
             "hourly": hourly_rows,
             "daily": daily_rows,
+            "historical_hourly": historical_hourly,
             "location": {
                 "latitude": raw.get("latitude"),
                 "longitude": raw.get("longitude"),
