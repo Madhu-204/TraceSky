@@ -2,7 +2,7 @@ import time
 from typing import Optional
 
 MAX_HISTORY = 20
-CONTEXT_TTL = 3600  # 1 hour
+CONTEXT_TTL = 3600
 
 
 class ConversationEntry:
@@ -22,10 +22,27 @@ class SessionContext:
         self.last_intents: list[str] = []
         self.last_entities: dict = {}
         self.created_at = time.time()
+        self.deep_dive_mode: Optional[str] = None
+        self.deep_dive_subject: Optional[str] = None
+        self.deep_dive_expires: float = 0
 
     @property
     def is_expired(self) -> bool:
         return time.time() - self.created_at > CONTEXT_TTL
+
+    @property
+    def is_in_deep_dive(self) -> bool:
+        return self.deep_dive_mode is not None and time.time() < self.deep_dive_expires
+
+    def set_deep_dive(self, mode: str, subject: Optional[str] = None, ttl: int = 120):
+        self.deep_dive_mode = mode
+        self.deep_dive_subject = subject
+        self.deep_dive_expires = time.time() + ttl
+
+    def clear_deep_dive(self):
+        self.deep_dive_mode = None
+        self.deep_dive_subject = None
+        self.deep_dive_expires = 0
 
     def add_message(self, role: str, text: str, intents: Optional[list[str]] = None):
         self.messages.append(ConversationEntry(role, text, intents))
@@ -42,7 +59,6 @@ class SessionContext:
 
 
 class ContextService:
-    """In-memory conversation context manager."""
 
     def __init__(self):
         self._sessions: dict[str, SessionContext] = {}

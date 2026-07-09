@@ -22,6 +22,60 @@ def _risk_color(level: str) -> str:
     return {"High": "red", "Moderate": "amber", "Low": "emerald"}.get(level, "emerald")
 
 
+def _simple_risk_description(risk: dict) -> str:
+    severity = risk.get("severity", "Low")
+    name = risk.get("name", "")
+    pct = risk.get("percentage", 0)
+    if severity == "Extreme":
+        return f"Dangerous conditions — {name} is at {pct}%. Take immediate precautions."
+    elif severity == "High":
+        return f"Significant {name} detected ({pct}%). You should take action."
+    elif severity == "Moderate":
+        return f"Moderate {name} risk ({pct}%). Stay alert and monitor conditions."
+    return f"Low {name} risk ({pct}%). No immediate concern, but stay aware."
+
+
+def _explain_risk_why(risk: dict) -> str:
+    chain = risk.get("explanation", {}).get("chain", [])
+    if not chain:
+        return ""
+    reasons = []
+    for t in chain[:2]:
+        parts = []
+        for c in t.get("conditions", []):
+            if c.get("matched"):
+                parts.append(f"{c.get('fact', '')} was {c.get('actual', '')} ({c.get('expected', '')})")
+        if parts:
+            reasons.append(f"Rule '{t.get('rule_description', '')}' matched because {' and '.join(parts)}")
+    if reasons:
+        return ". ".join(reasons)
+    return ""
+
+
+def _conversational_risk_summary(risks: list[dict]) -> str:
+    active = [r for r in risks if r.get("severity") in ("High", "Extreme", "Moderate")]
+    if not active:
+        return "Good news — no significant weather risks detected right now. Conditions are stable."
+    lines = []
+    for r in active:
+        lines.append(f"  - {_simple_risk_description(r)}")
+    return "Here's what I've found:\n\n" + "\n".join(lines)
+
+
+FIRST_VISIT_MESSAGE = (
+    "Welcome to WeatherWise! I'm your weather intelligence assistant. "
+    "I use an expert system with over 50 rules to analyze weather data in real time.\n\n"
+    "You can ask me about:\n"
+    "  • Current weather conditions\n"
+    "  • Flood, storm, or heat risks\n"
+    "  • Forecasts and outlooks\n"
+    "  • Weather trends and patterns\n"
+    "  • Farming advice\n"
+    "  • Solar energy planning\n\n"
+    "What would you like to know about your local weather?"
+)
+
+
 class AIService:
 
     def __init__(self):
@@ -31,8 +85,6 @@ class AIService:
     async def close(self):
         await self.weather.close()
 
-    # ─────────────────────────── Fact extraction ───────────────────────────
-
     async def _extract_facts(self, lat: float, lon: float) -> tuple[list[Fact], dict, dict, dict]:
         current = await self.weather.get_current_weather(lat, lon)
         forecast = await self.weather.get_forecast(lat, lon, 7)
@@ -40,7 +92,6 @@ class AIService:
         facts: list[Fact] = []
         now = datetime.now()
 
-        # Raw sensor facts from current weather
         if current:
             sensor_pairs = [
                 ("temperature", current.get("temperature"), 0.95),
@@ -59,7 +110,6 @@ class AIService:
         hourly = (forecast or {}).get("hourly", [])
         daily = (forecast or {}).get("daily", [])
 
-        # Derived facts from forecast data
         if hourly:
             wind_speeds = [h.get("wind_speed", 0) or 0 for h in hourly]
             max_wind_24h = max(wind_speeds[:24]) if len(wind_speeds) >= 24 else max(wind_speeds) if wind_speeds else 0
@@ -81,7 +131,6 @@ class AIService:
             facts.append(Fact(name="sunny_hours_today", value=sunny_hours_today, certainty=0.85, source="derived"))
             facts.append(Fact(name="sunny_hours_48h", value=sunny_hours_48h, certainty=0.85, source="derived"))
 
-        # Day-over-day delta facts from historical hourly data
         historical_hourly = forecast.get("historical_hourly", [])
         if historical_hourly:
             hist_temps = [h.get("temperature", 0) or 0 for h in historical_hourly]
@@ -254,7 +303,7 @@ class AIService:
         report = build_expert_report(result, facts, data_source, forecast_validation)
         return facts, current, forecast, report
 
-    # ─────────────────────────── Risk assessment ───────────────────────────
+    # ─────────────────── Public endpoints ───────────────────
 
     async def get_risks(self, lat: float, lon: float) -> list[dict]:
         cache_key = f"ai:risks:{lat:.2f}:{lon:.2f}"
@@ -267,8 +316,6 @@ class AIService:
 
         set_cache(cache_key, risks, expire=600)
         return risks
-
-    # ─────────────────────────── Recommendations ───────────────────────────
 
     async def get_recommendations(self, lat: float, lon: float) -> list[str]:
         cache_key = f"ai:recommendations:{lat:.2f}:{lon:.2f}"
@@ -297,8 +344,6 @@ class AIService:
 
         set_cache(cache_key, recs, expire=600)
         return recs
-
-    # ─────────────────────────── Historical comparison ─────────────────────
 
     async def get_historical_comparison(self, lat: float, lon: float) -> dict:
         cache_key = f"ai:historical_compare:{lat:.2f}:{lon:.2f}"
@@ -330,13 +375,17 @@ class AIService:
         forecast_wind = avg([d.get("wind_speed", 0) or 0 for d in forecast_daily])
         forecast_temp_mean = round((forecast_temps_high + forecast_temps_low) / 2, 1) if forecast_temps_high else None
 
-        hist_temps = avg((last_year or {}).get("temperature_mean", []))
-        hist_temps_high = avg((last_year or {}).get("temperature_max", []))
-        hist_temps_low = avg((last_year or {}).get("temperature_min", []))
-        hist_precip = avg((last_year or {}).get("precipitation_sum", []))
-        hist_wind = avg((last_year or {}).get("wind_speed_max", []))
+        has_historical = last_year is not None and len(last_year.get("time", [])) > 0
 
-        has_historical = hist_temps is not None
+        if has_historical:
+            hist_temps = avg(last_year.get("temperature_mean", []))
+            hist_temps_high = avg(last_year.get("temperature_max", []))
+            hist_temps_low = avg(last_year.get("temperature_min", []))
+            hist_precip = avg(last_year.get("precipitation_sum", []))
+            hist_wind = avg(last_year.get("wind_speed_max", []))
+            has_historical = hist_temps is not None
+        else:
+            hist_temps = hist_temps_high = hist_temps_low = hist_precip = hist_wind = None
 
         result = {
             "period": {
@@ -381,8 +430,6 @@ class AIService:
         set_cache(cache_key, result, expire=1800)
         return result
 
-    # ─────────────────────────── Farm suggestions ──────────────────────────
-
     async def get_farm_suggestions(self, lat: float, lon: float) -> list[str]:
         cache_key = f"ai:farm:{lat:.2f}:{lon:.2f}"
         cached = get_cache(cache_key)
@@ -397,8 +444,6 @@ class AIService:
 
         set_cache(cache_key, suggestions, expire=1800)
         return suggestions
-
-    # ─────────────────────────── Solar suggestions ─────────────────────────
 
     async def get_solar_suggestions(self, lat: float, lon: float) -> list[str]:
         cache_key = f"ai:solar:{lat:.2f}:{lon:.2f}"
@@ -415,8 +460,6 @@ class AIService:
         set_cache(cache_key, suggestions, expire=1800)
         return suggestions
 
-    # ─────────────────────────── Expert analysis (new) ─────────────────────
-
     async def get_expert_analysis(self, lat: float, lon: float) -> dict:
         _, _, _, report = await self._run_inference(lat, lon)
         return report
@@ -430,7 +473,6 @@ class AIService:
         _, current, forecast, report = await self._run_inference(lat, lon)
         historical = await self.get_historical_comparison(lat, lon)
 
-        # Extract delta info for enhanced display (stored in sensor_facts since _extract_facts adds them)
         delta_facts = {}
         for f in report.get("sensor_facts", []):
             if f["name"].endswith("_delta_24h") or f["name"].startswith("yesterday_"):
@@ -458,254 +500,458 @@ class AIService:
         set_cache(cache_key, risk_monitor, expire=600)
         return risk_monitor
 
-    # ─────────────────────────── Chat (pipeline) ───────────────────────────
+    # ───────────────────── Expert Chat with Deep Dive ─────────────────────
 
     async def chat(self, session_id: str, lat: float, lon: float, message: str) -> dict:
         engine = IntentEngine()
         ctx = context_service.get_or_create(session_id)
 
-        # Step 1: Intent extraction
+        is_affirmative = engine.is_affirmative(message)
+        is_deep_dive = ctx.is_in_deep_dive and is_affirmative
+
         intent_result = engine.extract(message)
         top_intents = intent_result.top_intents()
+        is_first = len(ctx.messages) == 0
+        is_greeting = intent_result.is_conversational_starter()
 
-        # Record user message in context
         context_service.record_message(session_id, "user", message, top_intents)
 
-        # Step 2: Fetch data based on intents
-        data = await self._fetch_for_intents(lat, lon, top_intents, intent_result)
+        if is_greeting and is_first:
+            return self._greeting_response()
 
-        # Step 3: Generate response with graphs
-        response = self._build_enhanced_response(intent_result, data, ctx)
+        facts, current, forecast, report = await self._run_inference(lat, lon)
 
-        # Record assistant response
+        risks = report.get("risks", [])
+        recommendations = report.get("recommendations", [])
+        farm_suggestions = report.get("farm_suggestions", [])
+        solar_suggestions = report.get("solar_suggestions", [])
+        forecast_validation = report.get("forecast_validation", {})
+
+        if is_deep_dive:
+            response = await self._build_deep_dive_response(
+                ctx=ctx, lat=lat, lon=lon,
+                current=current, forecast=forecast, risks=risks,
+                recommendations=recommendations, farm_suggestions=farm_suggestions,
+                solar_suggestions=solar_suggestions, forecast_validation=forecast_validation,
+                report=report,
+            )
+            ctx.clear_deep_dive()
+        else:
+            response = await self._build_expert_response(
+                ctx=ctx, lat=lat, lon=lon,
+                intent_result=intent_result, current=current, forecast=forecast,
+                risks=risks, recommendations=recommendations,
+                farm_suggestions=farm_suggestions, solar_suggestions=solar_suggestions,
+                forecast_validation=forecast_validation, report=report,
+            )
+
         context_service.record_message(session_id, "assistant", response["response"])
 
         return response
 
-    # ─────────────────────────── Data fetcher ──────────────────────────────
-
-    async def _fetch_for_intents(self, lat: float, lon: float, intents: list[str],
-                                  intent_result: IntentResult) -> dict:
-        data: dict = {}
-
-        # Always fetch these basics
-        current = await self.weather.get_current_weather(lat, lon)
-        forecast = await self.weather.get_forecast(lat, lon, 7)
-        risks = await self.get_risks(lat, lon)
-
-        data["current"] = current
-        data["forecast"] = forecast
-        data["risks"] = risks
-
-        print(f"[DEBUG] _fetch_for_intents: intents={intents}, current={'yes' if current else 'no'}, forecast={'yes' if forecast else 'no'}, risks={len(risks)}")
-        if forecast:
-            daily = (forecast or {}).get("daily", [])
-            print(f"[DEBUG] forecast daily count={len(daily)}")
-            if daily:
-                print(f"[DEBUG] first day: temp_max={daily[0].get('temperature_max')}, precip={daily[0].get('precipitation_sum')}")
-
-        for intent in intents:
-            if intent == "flood" or intent == "storm" or intent == "heat":
-                data["recommendations"] = await self.get_recommendations(lat, lon)
-
-            if intent == "historical":
-                data["historical"] = await self.get_historical_comparison(lat, lon)
-
-            if intent == "farm":
-                data["farm"] = await self.get_farm_suggestions(lat, lon)
-
-            if intent == "solar":
-                data["solar"] = await self.get_solar_suggestions(lat, lon)
-
-            if intent == "forecast":
-                pass  # already fetched
-
-        return data
-
-    # ─────────────────────────── Response builder ──────────────────────────
-
-    def _build_enhanced_response(self, intent_result: IntentResult, data: dict,
-                                  ctx=None) -> dict:
-        current = data.get("current") or {}
-        forecast = data.get("forecast") or {}
-        risks = data.get("risks") or []
-        recommendations = data.get("recommendations") or []
-
+    async def _build_expert_response(
+        self, ctx, lat, lon, intent_result, current, forecast,
+        risks, recommendations, farm_suggestions, solar_suggestions,
+        forecast_validation, report,
+    ) -> dict:
         intents = intent_result.top_intents()
-        primary = intent_result.primary
         entities = intent_result.entities
 
         response_text = ""
         graph = None
         metrics = None
         suggestions_data = None
+        expert_trace = self._build_expert_trace(risks, report)
 
-        # ── Risk intents (flood / storm / heat) ──
         risk_intent = next((i for i in intents if i in ("flood", "storm", "heat")), None)
         if risk_intent:
-            risk = next((r for r in risks if r["id"] == risk_intent), None)
-            if risk:
-                response_text = (
-                    f"**{risk['name']}**: {risk['severity']} ({risk['percentage']}%)\n\n"
-                    f"{risk['detail']}"
-                )
-                graph = {
-                    "type": "risk_gauge",
-                    "title": f"{risk['name']} Risk",
-                    "value": risk["percentage"],
-                    "severity": risk["severity"],
-                    "threshold": 70,
-                }
-                metrics = {
-                    "primary": {"label": "Risk Level", "value": f"{risk['percentage']}%", "color": risk.get("color", "amber")},
-                    "severity": {"label": "Severity", "value": risk["severity"], "color": risk.get("color", "amber")},
-                    "threshold": {"label": "Threshold", "value": "70%", "color": "red"},
-                }
-            else:
-                response_text = f"No significant **{risk_intent}** risk detected at your location. Conditions are stable."
+            response_text, graph, metrics = await self._risk_response(
+                risk_intent, risks, recommendations, current)
+            ctx.set_deep_dive("risk", risk_intent)
 
-        # ── Historical comparison ──
-        elif "historical" in intents:
-            hc = data.get("historical")
-            if hc:
-                m = hc["metrics"]
-                response_text = (
-                    f"**Historical Comparison** (this week vs last year)\n\n"
-                    f"{hc['summary']}\n\n"
-                    f"📊 Temperature: {m['temperature']['current']}°C vs {m['temperature']['historical']}°C "
-                    f"({m['temperature']['trend']}, {m['temperature']['change_pct']}%)\n"
-                    f"🌧 Precipitation: {m['precipitation']['current']}mm vs {m['precipitation']['historical']}mm "
-                    f"({m['precipitation']['trend']}, {m['precipitation']['change_pct']}%)\n"
-                    f"💨 Wind: {m['wind_speed']['current']}km/h vs {m['wind_speed']['historical']}km/h "
-                    f"({m['wind_speed']['trend']}, {m['wind_speed']['change_pct']}%)"
-                )
-                graph = {
-                    "type": "comparison_bars",
-                    "title": "This Week vs Last Year",
-                    "datasets": [
-                        {
-                            "label": "Temperature (°C)",
-                            "current": m["temperature"]["current"],
-                            "historical": m["temperature"]["historical"],
-                            "change_pct": m["temperature"]["change_pct"],
-                        },
-                        {
-                            "label": "Precipitation (mm)",
-                            "current": m["precipitation"]["current"],
-                            "historical": m["precipitation"]["historical"],
-                            "change_pct": m["precipitation"]["change_pct"],
-                        },
-                        {
-                            "label": "Wind Speed (km/h)",
-                            "current": m["wind_speed"]["current"],
-                            "historical": m["wind_speed"]["historical"],
-                            "change_pct": m["wind_speed"]["change_pct"],
-                        },
-                    ],
-                }
-                metrics = {
-                    "temperature": {"label": "Temp Δ", "value": f"{m['temperature']['change_pct']:+.1f}%", "color": "amber" if abs(m['temperature']['change_pct']) > 10 else "emerald"},
-                    "precipitation": {"label": "Precip Δ", "value": f"{m['precipitation']['change_pct']:+.1f}%", "color": "blue" if m['precipitation']['change_pct'] > 0 else "emerald"},
-                    "wind": {"label": "Wind Δ", "value": f"{m['wind_speed']['change_pct']:+.1f}%", "color": "amber" if abs(m['wind_speed']['change_pct']) > 15 else "emerald"},
-                }
+        elif "trend" in intents:
+            response_text, graph, metrics = self._trend_response(forecast, forecast_validation)
 
-        # ── Farm suggestions ──
         elif "farm" in intents:
-            farm = data.get("farm", [])
-            response_text = "**Farm Intelligence Report**\n\n" + "\n".join(f"🌱 {s}" for s in farm)
-            suggestions_data = farm
-            graph = {
-                "type": "suggestion_list",
-                "title": "Farm Suggestions",
-                "items": farm[:4],
-                "icon": "farm",
-            }
-            metrics = {
-                "total": {"label": "Suggestions", "value": str(len(farm)), "color": "emerald"},
-                "temp": {"label": "Current Temp", "value": f"{current.get('temperature', '--')}°C", "color": "blue"},
-                "precip": {"label": "Precipitation", "value": f"{current.get('precipitation', 0)}mm", "color": "cyan"},
-            }
+            response_text, graph, metrics, suggestions_data = self._farm_response(
+                current, farm_suggestions)
+            ctx.set_deep_dive("farm")
 
-        # ── Solar suggestions ──
         elif "solar" in intents:
-            solar = data.get("solar", [])
-            uv = current.get("uv_index", 0) or 0
-            response_text = f"**Solar Energy Report**\n\nCurrent UV Index: **{uv}**\n\n" + "\n".join(f"☀️ {s}" for s in solar)
-            suggestions_data = solar
-            graph = {
-                "type": "suggestion_list",
-                "title": "Solar Suggestions",
-                "items": solar[:4],
-                "icon": "solar",
-            }
-            metrics = {
-                "uv": {"label": "UV Index", "value": str(uv), "color": "amber"},
-                "suggestions": {"label": "Actions", "value": str(len(solar)), "color": "emerald"},
-            }
+            response_text, graph, metrics, suggestions_data = self._solar_response(
+                current, solar_suggestions)
+            ctx.set_deep_dive("solar")
 
-        # ── Forecast ──
         elif "forecast" in intents:
-            daily = (forecast or {}).get("daily", [])
-            if daily:
-                lines = []
-                for d in daily[:5]:
-                    lines.append(f"**{d['day']}**: {d.get('temperature_max', '--')}° / {d.get('temperature_min', '--')}° | {d.get('condition', '--')} | 💧 {d.get('precipitation_probability', 0)}%")
-                response_text = "**7-Day Forecast**\n\n" + "\n".join(lines)
+            response_text, graph, metrics = self._forecast_response(forecast, forecast_validation)
+            ctx.set_deep_dive("forecast_day")
 
-                graph = {
-                    "type": "forecast_line",
-                    "title": "Temperature Trend (5 Days)",
-                    "labels": [d["day"] for d in daily[:5]],
-                    "highs": [d.get("temperature_max", 0) for d in daily[:5]],
-                    "lows": [d.get("temperature_min", 0) for d in daily[:5]],
-                    "precip": [d.get("precipitation_probability", 0) for d in daily[:5]],
-                }
-                metrics = {
-                    "high": {"label": "High", "value": f"{daily[0].get('temperature_max', '--')}°", "color": "red"},
-                    "low": {"label": "Low", "value": f"{daily[0].get('temperature_min', '--')}°", "color": "blue"},
-                    "precip": {"label": "Rain Chance", "value": f"{daily[0].get('precipitation_probability', 0)}%", "color": "cyan"},
-                }
-
-        # ── General / fallback ──
         if not response_text:
-            temp = current.get("temperature", "N/A")
-            condition = current.get("condition", "N/A")
-            active_risks = [r for r in risks if r.get("severity") != "Low"]
-            risk_summary = (
-                f"There {'is' if len(active_risks) == 1 else 'are'} "
-                f"{len(active_risks)} active risk{'s' if len(active_risks) != 1 else ''}: "
-                + ", ".join(f"{r['name']} ({r['severity']})" for r in active_risks)
-                if active_risks else "No active risks at this time."
-            )
-            response_text = (
-                f"Current conditions: **{condition}**, **{temp}°C**. {risk_summary}\n\n"
-                f"I can help with: flood risk, storm tracking, heat analysis, "
-                f"forecast, historical comparisons, farm suggestions, and solar energy planning."
-            )
-
-            if forecast:
-                daily = (forecast or {}).get("daily", [])
-                if daily:
-                    graph = {
-                        "type": "forecast_line",
-                        "title": "Temperature Outlook",
-                        "labels": [d["day"] for d in daily[:5]],
-                        "highs": [d.get("temperature_max", 0) for d in daily[:5]],
-                        "lows": [d.get("temperature_min", 0) for d in daily[:5]],
-                        "precip": [d.get("precipitation_probability", 0) for d in daily[:5]],
-                    }
-                    metrics = {
-                        "now": {"label": "Now", "value": f"{temp}°C", "color": "blue"},
-                        "condition": {"label": "Condition", "value": str(condition), "color": "gray"},
-                    }
+            response_text, graph, metrics = self._general_response(current, forecast, risks)
 
         return {
             "response": response_text,
             "graph": graph,
             "metrics": metrics,
             "risks": risks,
-            "recommendations": recommendations[:3] if recommendations else None,
+            "recommendations": [r["text"] for r in recommendations[:3]] if recommendations else None,
             "suggestions": suggestions_data,
             "intents": intents,
             "entities": entities,
+            "expert_trace": expert_trace,
+        }
+
+    # ── Deep dive ────────────────────────────────────────────────────────
+
+    async def _build_deep_dive_response(
+        self, ctx, lat, lon, current, forecast, risks,
+        recommendations, farm_suggestions, solar_suggestions,
+        forecast_validation, report,
+    ) -> dict:
+        mode = ctx.deep_dive_mode
+        subject = ctx.deep_dive_subject
+        response_text = ""
+        graph = None
+        metrics = None
+        suggestions_data = None
+        expert_trace = self._build_expert_trace(risks, report)
+
+        if mode == "farm":
+            response_text = "Here's a detailed breakdown of the farming conditions:\n\n"
+            derived = report.get("derived_facts", [])
+            farm_rules = []
+            for f in derived:
+                if f["name"].startswith("farm_"):
+                    farm_rules.append(f)
+            if farm_rules:
+                for fr in farm_rules:
+                    label = fr["name"].replace("farm_", "").replace("_", " ").title()
+                    response_text += f"  • **{label}**: {fr['value']} (confidence: {fr['certainty'] * 100:.0f}%)\n"
+                response_text += "\n"
+            response_text += (
+                f"Current soil-level conditions: **{current.get('temperature', '--')}°C**, "
+                f"**{current.get('humidity', '--')}%** humidity.\n\n"
+                "You can also ask me about flood risks, the general forecast, or solar energy planning."
+            )
+
+        elif mode == "solar":
+            response_text = "Here's your full solar energy assessment:\n\n"
+            derived = report.get("derived_facts", [])
+            solar_rules = []
+            for f in derived:
+                if f["name"].startswith("solar_"):
+                    solar_rules.append(f)
+            if solar_rules:
+                for sr in solar_rules:
+                    label = sr["name"].replace("solar_", "").replace("_", " ").title()
+                    response_text += f"  • **{label}**: {sr['value']} (confidence: {sr['certainty'] * 100:.0f}%)\n"
+                response_text += "\n"
+            response_text += (
+                f"UV index forecast: **{current.get('uv_index', '--')}**.\n"
+                f"Sunny hours today: {next((f['value'] for f in report.get('sensor_facts', []) if f['name'] == 'sunny_hours_today'), '--')}h.\n\n"
+                "You can ask me about the forecast or farming conditions too."
+            )
+            graph = {"type": "suggestion_list", "title": "Solar Tips", "items": solar_suggestions[:4], "icon": "solar"}
+            metrics = {
+                "uv": {"label": "UV", "value": str(current.get("uv_index", "--")), "color": "amber"},
+                "tips": {"label": "Tips", "value": str(len(solar_suggestions)), "color": "emerald"},
+            }
+            suggestions_data = solar_suggestions
+
+        elif mode == "forecast_day":
+            day = subject
+            hourly = (forecast or {}).get("hourly", [])
+            daily = (forecast or {}).get("daily", [])
+            day_hours = []
+            if day and len(day) == 3:
+                day_idx = None
+                for i, d in enumerate(daily):
+                    if d.get("day") == day.upper():
+                        day_idx = i
+                        break
+                if day_idx is not None and day_idx < len(daily):
+                    target_date_str = daily[day_idx].get("date", "")
+                    day_hours = [h for h in hourly if h.get("iso_time", "").startswith(target_date_str[:10])]
+
+            if day_hours:
+                response_text = f"Hourly breakdown for **{day.upper()}**:\n\n"
+                for h in day_hours[:12]:
+                    response_text += (
+                        f"  • **{h.get('time', '')}**: {h.get('temperature', '--')}°C | "
+                        f"Rain {h.get('precipitation_probability', 0)}% | "
+                        f"Wind {h.get('wind_speed', '--')}km/h | "
+                        f"Humidity {h.get('humidity', '--')}%\n"
+                    )
+                response_text += "\nYou can check specific risks like flood, storm, or heat, or ask for the general forecast."
+            elif daily:
+                response_text = "Here are the detailed daily metrics:\n\n"
+                for d in daily[:5]:
+                    response_text += (
+                        f"  • **{d['day']}**: {d.get('temperature_max', '--')}° / {d.get('temperature_min', '--')}° | "
+                        f"{d.get('condition', '--')} | Rain {d.get('precipitation_probability', 0)}% | "
+                        f"Wind {d.get('wind_speed', '--')}km/h\n"
+                    )
+                response_text += "\nAsk me about risks or farming conditions too."
+            else:
+                response_text = "Detailed hourly data isn't available right now. Try asking about risks or the general forecast."
+
+        elif mode == "risk":
+            risk_intent = subject
+            risk = next((r for r in risks if r["id"] == risk_intent), None)
+            if risk:
+                response_text = f"**{risk.get('name', risk_intent.capitalize())}** — detailed analysis:\n\n"
+                chain = risk.get("explanation", {}).get("chain", [])
+                for t in chain[:3]:
+                    response_text += f"  • Rule: **{t.get('rule_description', '')}** (certainty: {t.get('certainty', 0) * 100:.0f}%)\n"
+                    for c in t.get("conditions", []):
+                        icon = "✓" if c.get("matched") else "✗"
+                        response_text += f"    {icon} {c.get('fact')} {c.get('operator')} {c.get('expected')} (actual: {c.get('actual')})\n"
+                    response_text += "\n"
+                response_text += (
+                    f"Risk score: **{risk.get('percentage', 0)}%** | "
+                    f"Severity: **{risk.get('severity', 'N/A')}**\n\n"
+                    "You can explore the forecast, farming, or solar info too."
+                )
+                graph = {
+                    "type": "risk_gauge",
+                    "title": f"{risk.get('name')} Risk",
+                    "value": risk.get("percentage", 0),
+                    "severity": risk.get("severity"),
+                    "threshold": 70,
+                }
+                metrics = {
+                    "risk": {"label": "Risk", "value": f"{risk.get('percentage', 0)}%", "color": risk.get("color", "amber")},
+                    "severity": {"label": "Severity", "value": risk.get("severity", ""), "color": risk.get("color", "amber")},
+                    "certainty": {"label": "Confidence", "value": f"{risk.get('certainty', 0) * 100:.0f}%", "color": "blue"},
+                }
+            else:
+                response_text = "No specific risk data available for that category. Ask about the forecast or farming instead."
+
+        if not response_text:
+            response_text = "I don't have detailed data for that topic. Try asking about the forecast, risks, farming, or solar energy."
+
+        return {
+            "response": response_text,
+            "graph": graph,
+            "metrics": metrics,
+            "risks": risks,
+            "recommendations": [r["text"] for r in recommendations[:3]] if recommendations else None,
+            "suggestions": suggestions_data,
+            "intents": [],
+            "entities": {},
+            "expert_trace": expert_trace,
+        }
+
+    # ── Response helpers ────────────────────────────────────────────────
+
+    def _build_expert_trace(self, risks: list[dict], report: dict) -> Optional[dict]:
+        fired_rules = []
+        for r in risks:
+            chain = r.get("explanation", {}).get("chain", [])
+            for t in chain:
+                fired_rules.append({
+                    "rule_id": t.get("rule_id", ""),
+                    "description": t.get("rule_description", ""),
+                    "certainty": t.get("certainty", 0),
+                    "conditions": [
+                        {"fact": c.get("fact", ""), "actual": c.get("actual", ""),
+                         "expected": c.get("expected", ""), "operator": c.get("operator", ""),
+                         "matched": c.get("matched", False)}
+                        for c in t.get("conditions", [])
+                    ],
+                })
+        if fired_rules:
+            return {
+                "fired_rules": fired_rules[:5],
+                "rules_evaluated": report.get("inference_metrics", {}).get("total_rules_evaluated", 0),
+                "rules_fired": report.get("inference_metrics", {}).get("total_rules_fired", 0),
+                "execution_time_ms": report.get("inference_metrics", {}).get("execution_time_ms", 0),
+                "overall_certainty": report.get("inference_metrics", {}).get("overall_certainty", 0),
+            }
+        return None
+
+    async def _risk_response(self, risk_intent: str, risks: list[dict], report: dict, current: dict) -> tuple:
+        risk = next((r for r in risks if r["id"] == risk_intent), None)
+        if not risk:
+            txt = (
+                f"No significant **{risk_intent}** risk detected. "
+                "Conditions look stable. Ask about the forecast or other features!"
+            )
+            return txt, None, None
+
+        severity = risk.get("severity", "Low")
+        pct = risk.get("percentage", 0)
+        name = risk.get("name", risk_intent.capitalize())
+        detail = risk.get("detail", "")
+        why = _explain_risk_why(risk)
+        recommendations = report.get("recommendations", [])
+
+        tone = ("I need to alert you about something important." if severity in ("Extreme", "High")
+                else "I wanted to let you know about a potential concern." if severity == "Moderate"
+                else "Just an update — nothing to worry about.")
+
+        txt = f"{tone}\n\n**{name}** risk is **{severity}** at **{pct}%** confidence.\n\n{detail}\n\n"
+        if why:
+            txt += f"Here's why: {why}\n\n"
+
+        recs = [r for r in recommendations if r.get("triggered_by", "").startswith(risk_intent.upper())]
+        if recs:
+            txt += "What you should do:\n"
+            for r in recs[:3]:
+                txt += f"  • {r['text']}\n"
+            txt += "\n"
+
+        txt += "Want me to break down exactly how the system reached this conclusion?"
+
+        g = None
+        m = None
+        if pct >= 50:
+            g = {"type": "risk_gauge", "title": f"{name} Risk", "value": pct, "severity": severity, "threshold": 70}
+            m = {
+                "risk_level": {"label": "Risk Level", "value": f"{pct}%", "color": risk.get("color", "amber")},
+                "severity": {"label": "Severity", "value": severity, "color": risk.get("color", "amber")},
+                "certainty": {"label": "Confidence", "value": f"{risk.get('certainty', 0) * 100:.0f}%", "color": "blue"},
+            }
+        return txt, g, m
+
+    def _trend_response(self, forecast: dict, fv: dict) -> tuple:
+        daily = (forecast or {}).get("daily", [])
+        if not daily or len(daily) < 3:
+            return "Not enough forecast data to detect a trend. Ask about current conditions!", None, None
+
+        temps = [d.get("temperature_max", 0) or 0 for d in daily[:5]]
+        mid = len(temps) // 2
+        avg_first = sum(temps[:mid]) / mid if mid else 0
+        avg_second = sum(temps[mid:]) / (len(temps) - mid) if (len(temps) - mid) else 0
+        trend_dir = "warming" if avg_second > avg_first else "cooling" if avg_second < avg_first else "stable"
+        fv_status = fv.get("overall_status", "NONE")
+        reliability = ("reliable" if fv_status == "HIGH" else "moderately reliable" if fv_status == "MEDIUM" else "less reliable than usual")
+
+        txt = "Looking at the temperature trend over the next few days:\n\n"
+        for d in daily[:5]:
+            txt += f"  • **{d['day']}**: {d.get('temperature_max', '--')}°C high\n"
+        txt += f"\nThe overall trend is **{trend_dir}**. The forecast is {reliability}.\n\n"
+        txt += "Want me to check specific risks like flood, storm, or heat?"
+
+        g = {
+            "type": "forecast_line", "title": "Temperature Trend",
+            "labels": [d["day"] for d in daily[:5]],
+            "highs": [d.get("temperature_max", 0) for d in daily[:5]],
+            "lows": [d.get("temperature_min", 0) for d in daily[:5]],
+            "precip": [d.get("precipitation_probability", 0) for d in daily[:5]],
+        }
+        m = {
+            "trend": {"label": "Trend", "value": trend_dir.upper(), "color": "amber" if trend_dir != "stable" else "emerald"},
+            "avg_high": {"label": "Avg High", "value": f"{sum(temps)/len(temps):.0f}°C", "color": "red"},
+            "reliability": {"label": "Reliability", "value": fv_status, "color": fv_status == "HIGH" and "emerald" or fv_status == "MEDIUM" and "amber" or "gray"},
+        }
+        return txt, g, m
+
+    def _farm_response(self, current: dict, farm_suggestions: list[str]) -> tuple:
+        txt = "Let me check the conditions for farming today.\n\n"
+        if farm_suggestions:
+            for s in farm_suggestions:
+                txt += f"  • {s}\n"
+        else:
+            txt += "Conditions look neutral for farm work.\n"
+
+        temp = current.get("temperature", "--")
+        precip = current.get("precipitation", 0)
+        humid = current.get("humidity", "--")
+        txt += f"\nCurrent: **{temp}°C**, **{humid}%** humidity, **{precip}mm** rain.\n\n"
+        txt += "Want me to dive deeper into each farming factor?"
+
+        m = {
+            "temp": {"label": "Temp", "value": f"{temp}°C", "color": "blue"},
+            "precip": {"label": "Rain", "value": f"{precip}mm", "color": "cyan"},
+            "tips": {"label": "Tips", "value": str(len(farm_suggestions)), "color": "emerald"},
+        }
+        return txt, None, m, farm_suggestions
+
+    def _solar_response(self, current: dict, solar_suggestions: list[str]) -> tuple:
+        uv = current.get("uv_index", 0) or 0
+        txt = "Let me assess the solar conditions.\n\n"
+        txt += f"Current UV index is **{uv}**"
+        if uv > 5:
+            txt += " — strong sunshine today!"
+        elif uv > 3:
+            txt += " — moderate sunshine."
+        else:
+            txt += " — fairly low sun intensity."
+        txt += "\n\n"
+
+        if solar_suggestions:
+            for s in solar_suggestions:
+                txt += f"  • {s}\n"
+        txt += "\nWant me to dive deeper into solar generation details?"
+
+        m = {"uv": {"label": "UV Index", "value": str(uv), "color": "amber"}, "tips": {"label": "Tips", "value": str(len(solar_suggestions)), "color": "emerald"}}
+        return txt, None, m, solar_suggestions
+
+    def _forecast_response(self, forecast: dict, fv: dict) -> tuple:
+        daily = (forecast or {}).get("daily", [])
+        if not daily:
+            return "Forecast data isn't available right now.", None, None
+
+        txt = "Here's your forecast for the coming days.\n\n"
+        for d in daily[:5]:
+            txt += f"  • **{d['day']}**: {d.get('temperature_max', '--')}° / {d.get('temperature_min', '--')}° | {d.get('condition', '--')} | Rain {d.get('precipitation_probability', 0)}%\n"
+
+        fv_status = fv.get("overall_status", "NONE")
+        if fv_status == "LOW":
+            txt += "\nNote: The forecast deviates from historical patterns — conditions might change."
+        elif fv_status == "HIGH":
+            txt += "\nForecast aligns well with historical data — you can rely on these predictions."
+
+        txt += "\n\nWant me to show the hourly breakdown for a specific day?"
+
+        g = {
+            "type": "forecast_line", "title": "Temperature (5 Days)",
+            "labels": [d["day"] for d in daily[:5]],
+            "highs": [d.get("temperature_max", 0) for d in daily[:5]],
+            "lows": [d.get("temperature_min", 0) for d in daily[:5]],
+            "precip": [d.get("precipitation_probability", 0) for d in daily[:5]],
+        }
+        m = {
+            "high": {"label": "High", "value": f"{daily[0].get('temperature_max', '--')}°", "color": "red"},
+            "low": {"label": "Low", "value": f"{daily[0].get('temperature_min', '--')}°", "color": "blue"},
+            "rain": {"label": "Rain", "value": f"{daily[0].get('precipitation_probability', 0)}%", "color": "cyan"},
+        }
+        return txt, g, m
+
+    def _general_response(self, current: dict, forecast: dict, risks: list[dict]) -> tuple:
+        temp = current.get("temperature", "N/A")
+        condition = current.get("condition", "N/A")
+        humidity = current.get("humidity", "N/A")
+        wind = current.get("wind_speed", "N/A")
+
+        txt = f"Right now it's **{condition}** and **{temp}°C**.\n\n"
+        txt += (_conversational_risk_summary(risks) + "\n\n") if risks else "No weather risks detected. Conditions are calm.\n\n"
+        txt += f"Quick stats: Humidity **{humidity}%**, Wind **{wind}km/h**.\n\n"
+        txt += "Ask about specific risks (flood, storm, heat), forecast, trends, farming, or solar."
+
+        g = None
+        m = None
+        daily_data = (forecast or {}).get("daily", [])
+        if daily_data:
+            g = {
+                "type": "forecast_line", "title": "Temperature Outlook",
+                "labels": [d["day"] for d in daily_data[:5]],
+                "highs": [d.get("temperature_max", 0) for d in daily_data[:5]],
+                "lows": [d.get("temperature_min", 0) for d in daily_data[:5]],
+                "precip": [d.get("precipitation_probability", 0) for d in daily_data[:5]],
+            }
+            m = {
+                "now": {"label": "Now", "value": f"{temp}°C", "color": "blue"},
+                "humidity": {"label": "Humidity", "value": f"{humidity}%", "color": "cyan"},
+                "wind": {"label": "Wind", "value": f"{wind}km/h", "color": "emerald"},
+            }
+        return txt, g, m
+
+    def _greeting_response(self) -> dict:
+        return {
+            "response": FIRST_VISIT_MESSAGE,
+            "graph": None, "metrics": None, "risks": [],
+            "recommendations": [], "suggestions": [],
+            "intents": [], "entities": {}, "expert_trace": None,
         }

@@ -30,6 +30,29 @@ export interface GraphConfig {
   icon?: string;
 }
 
+export interface ExpertTraceCondition {
+  fact: string;
+  actual: unknown;
+  expected: string;
+  operator: string;
+  matched: boolean;
+}
+
+export interface ExpertTraceRule {
+  rule_id: string;
+  description: string;
+  certainty: number;
+  conditions: ExpertTraceCondition[];
+}
+
+export interface ExpertTrace {
+  fired_rules: ExpertTraceRule[];
+  rules_evaluated: number;
+  rules_fired: number;
+  execution_time_ms: number;
+  overall_certainty: number;
+}
+
 export interface AssistantMessage {
   id: string;
   sender: 'assistant' | 'user';
@@ -37,6 +60,7 @@ export interface AssistantMessage {
   text: string;
   graph?: GraphConfig;
   metrics?: Record<string, MetricItem>;
+  expert_trace?: ExpertTrace;
   hasMetricsCard?: boolean;
   metricsData?: {
     title: string;
@@ -52,5 +76,5 @@ export interface AssistantMessage {
 export interface SuggestionToken {
   id: string;
   label: string;
-  iconType: 'flood' | 'farm' | 'cyclone' | 'solar';
+  iconType: 'flood' | 'farm' | 'cyclone' | 'solar' | 'forecast' | 'general';
 }

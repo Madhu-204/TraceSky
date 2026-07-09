@@ -1,11 +1,72 @@
-import React from 'react';
-import { Sparkles, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, User, ChevronDown, ChevronUp, Brain, CheckCircle, XCircle, Microscope } from 'lucide-react';
 import type { AssistantMessage } from '../../types/assistant.types';
 import { GraphRenderer } from './GraphRenderer';
 
 interface AssistantChatFeedProps {
   messages: AssistantMessage[];
 }
+
+const ExpertTracePanel: React.FC<{ trace: NonNullable<AssistantMessage['expert_trace']> }> = ({ trace }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="mt-3 bg-[#080B1A] border border-[#1a2040] rounded-xl overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-mono font-bold text-gray-500 hover:text-gray-300 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Brain size={12} className="text-indigo-400" />
+          <span>EXPERT SYSTEM TRACE</span>
+          <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded font-bold">
+            {trace.rules_evaluated} rules
+          </span>
+          <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded font-bold">
+            {trace.rules_fired} fired
+          </span>
+        </div>
+        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+
+      {expanded && (
+        <div className="px-3 pb-3 space-y-2">
+          <div className="flex gap-3 text-[9px] font-mono text-gray-500 border-b border-[#1a2040] pb-2">
+            <span>Execution: {trace.execution_time_ms}ms</span>
+            <span>Confidence: {(trace.overall_certainty * 100).toFixed(0)}%</span>
+          </div>
+
+          {trace.fired_rules.map((rule, idx) => (
+            <div key={idx} className="bg-[#0C1125] border border-[#1a2040] rounded-lg p-2.5 space-y-1.5">
+              <div className="flex items-start gap-2">
+                <Microscope size={12} className="text-indigo-400 mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold text-gray-300 leading-tight">{rule.description}</div>
+                  <div className="text-[9px] font-mono text-indigo-400">{rule.rule_id}</div>
+                </div>
+              </div>
+              <div className="space-y-1 pl-5">
+                {rule.conditions.map((cond, cIdx) => (
+                  <div key={cIdx} className="flex items-center gap-2">
+                    {cond.matched ? (
+                      <CheckCircle size={10} className="text-emerald-500 shrink-0" />
+                    ) : (
+                      <XCircle size={10} className="text-rose-500 shrink-0" />
+                    )}
+                    <span className={`text-[9px] font-mono ${cond.matched ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {cond.fact} {cond.operator} {cond.expected}
+                      <span className="text-gray-600"> (actual: {String(cond.actual)})</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const AssistantChatFeed: React.FC<AssistantChatFeedProps> = ({ messages }) => {
   return (
@@ -37,17 +98,42 @@ export const AssistantChatFeed: React.FC<AssistantChatFeedProps> = ({ messages }
                   ? 'bg-[#0E1328] border border-[#1C2345] text-gray-200'
                   : 'bg-blue-600 text-white shadow-[0_4px_12px_rgba(59,130,246,0.15)] font-semibold'
               }`}>
-                {msg.text.split('**').map((chunk, index) =>
-                  index % 2 === 1 ? <strong key={index} className={isAI ? "text-blue-400 font-bold" : "text-white font-black"}>{chunk}</strong> : chunk
-                )}
+                {(() => {
+                  const renderBold = (text: string) =>
+                    text.split('**').map((chunk, idx) =>
+                      idx % 2 === 1 ? (
+                        <strong key={idx} className={isAI ? "text-blue-400 font-bold" : "text-white font-black"}>
+                          {chunk}
+                        </strong>
+                      ) : (
+                        chunk
+                      )
+                    );
+
+                  return msg.text.split('\n').map((line, lineIdx) => (
+                    <React.Fragment key={lineIdx}>
+                      {line.startsWith('  • ') ? (
+                        <span className="block ml-2 text-[11.5px]">{renderBold(line)}</span>
+                      ) : line.startsWith('• ') ? (
+                        <span className="block text-[11.5px]">{renderBold(line)}</span>
+                      ) : line === '' ? (
+                        <br />
+                      ) : (
+                        <span>{renderBold(line)}</span>
+                      )}
+                    </React.Fragment>
+                  ));
+                })()}
               </div>
 
-              {/* Graph renderer for structured graph data */}
+              {isAI && msg.expert_trace && (
+                <ExpertTracePanel trace={msg.expert_trace} />
+              )}
+
               {isAI && msg.graph && (
                 <GraphRenderer graph={msg.graph} metrics={msg.metrics} />
               )}
 
-              {/* Legacy metrics card fallback */}
               {isAI && !msg.graph && msg.hasMetricsCard && msg.metricsData && (
                 <div className="bg-[#0A0D1F] border border-[#1B2244] rounded-2xl p-4 space-y-4 shadow-xl">
                   <div className="flex justify-between items-center border-b border-[#161B36] pb-3">
