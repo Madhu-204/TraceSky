@@ -1,7 +1,7 @@
 import React from 'react';
-import { Settings, Bell, Key, Database } from 'lucide-react';
+import { Settings, User, MapPin, Shield } from 'lucide-react';
 
-export type SettingsTab = 'general' | 'notifications' | 'api' | 'ingestion';
+export type SettingsTab = 'general' | 'profile' | 'location' | 'advanced';
 
 interface SettingsSidebarProps {
   activeTab: SettingsTab;
@@ -11,9 +11,9 @@ interface SettingsSidebarProps {
 export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'general', label: 'General Configuration', icon: <Settings size={14} /> },
-    { id: 'notifications', label: 'Notification Protocols', icon: <Bell size={14} /> },
-    { id: 'api', label: 'API Keys & Gateways', icon: <Key size={14} /> },
-    { id: 'ingestion', label: 'Data Ingestion Architecture', icon: <Database size={14} /> },
+    { id: 'profile', label: 'Profile & Account', icon: <User size={14} /> },
+    { id: 'location', label: 'Default Location', icon: <MapPin size={14} /> },
+    { id: 'advanced', label: 'Data & Security', icon: <Shield size={14} /> },
   ] as const;
 
   return (
@@ -21,12 +21,13 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, set
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setActiveTab(tab.id)}
+          onClick={() => setActiveTab(tab.id as SettingsTab)}
           className={`flex items-center gap-2.5 px-4 py-3 text-xs font-bold whitespace-nowrap rounded-xl transition-all w-full text-left ${
             activeTab === tab.id
-              ? 'bg-blue-600 text-white shadow-[0_2px_10px_rgba(59,130,246,0.2)]'
+              ? 'bg-blue-600 text-white'
               : 'text-gray-400 hover:text-gray-200 hover:bg-[#151C3A]/50'
           }`}
+          style={activeTab === tab.id ? { boxShadow: 'var(--color-shadow-glow)' } : undefined}
         >
           {tab.icon}
           <span>{tab.label}</span>

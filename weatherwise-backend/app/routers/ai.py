@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from pydantic import BaseModel
 
+from app.routers.auth import get_current_user
+from app.schemas.auth import UserResponse
 from app.services.ai_service import AIService
 
 router = APIRouter(prefix="/api/v1/ai", tags=["AI Analysis"])
@@ -14,7 +16,10 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/chat")
-async def chat(body: ChatRequest):
+async def chat(
+    body: ChatRequest,
+    _: UserResponse = Depends(get_current_user),
+):
     svc = AIService()
     try:
         result = await svc.chat(body.session_id, body.lat, body.lon, body.message)
@@ -27,6 +32,7 @@ async def chat(body: ChatRequest):
 async def get_risks(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = AIService()
     try:
@@ -40,6 +46,7 @@ async def get_risks(
 async def get_recommendations(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = AIService()
     try:
@@ -53,6 +60,7 @@ async def get_recommendations(
 async def historical_comparison(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = AIService()
     try:
@@ -66,6 +74,7 @@ async def historical_comparison(
 async def farm_suggestions(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = AIService()
     try:
@@ -79,6 +88,7 @@ async def farm_suggestions(
 async def solar_suggestions(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = AIService()
     try:
@@ -92,6 +102,7 @@ async def solar_suggestions(
 async def expert_analysis(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = AIService()
     try:
@@ -105,10 +116,26 @@ async def expert_analysis(
 async def risk_monitor(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = AIService()
     try:
         result = await svc.get_risk_monitor(lat, lon)
+        return {"success": True, "data": result}
+    finally:
+        await svc.close()
+
+
+@router.get("/analytics")
+async def analytics(
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
+    refresh: bool = Query(False, description="Bypass cache and regenerate"),
+    _: UserResponse = Depends(get_current_user),
+):
+    svc = AIService()
+    try:
+        result = await svc.get_analytics_report(lat, lon, refresh=refresh)
         return {"success": True, "data": result}
     finally:
         await svc.close()

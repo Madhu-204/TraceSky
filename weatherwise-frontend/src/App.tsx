@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from './store/authStore';
+import { useSettingsStore } from './store/settingsStore';
+import { useLocationStore } from './store/locationStore';
+import { useAuthorization } from './hooks/useAuthorization';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
@@ -18,6 +21,7 @@ export default function App() {
   const isLoading = useAuthStore((state) => state.isLoading);
   const initAuth = useAuthStore((state) => state.initAuth);
   const logout = useAuthStore((state) => state.logout);
+  const { getAccessibleTabs } = useAuthorization();
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login');
   const [resetToken, setResetToken] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -33,10 +37,21 @@ export default function App() {
     }
   }, []);
 
+  // Apply saved theme accent on mount
+  useEffect(() => {
+    const theme = useSettingsStore.getState().config.themeAccent;
+    document.documentElement.setAttribute('data-theme', theme);
+  }, []);
+
   // Initialize auth on app load - check session via cookie
   useEffect(() => {
     initAuth();
   }, [initAuth]);
+
+  // Sync defaultLocation to currentLocation on app load (after rehydration)
+  useEffect(() => {
+    useLocationStore.getState().syncDefaultToCurrent();
+  }, []);
 
   // Show loading spinner while checking auth
   if (isLoading) {
@@ -70,18 +85,21 @@ export default function App() {
     }
   }
 
+  const safeTabs = getAccessibleTabs();
+  const safeActiveTab = safeTabs.includes(activeTab) ? activeTab : 'dashboard';
+
   return (
     <div className="min-h-screen bg-[#0B0F19] text-gray-100 selection:bg-blue-500/30 antialiased">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={logout} />
+      <Sidebar activeTab={safeActiveTab} setActiveTab={setActiveTab} onLogout={logout} />
       <div className="flex flex-col flex-1">
-        <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Header activeTab={safeActiveTab} setActiveTab={setActiveTab} />
         <main className="flex-1 pt-14 lg:pt-0">
-          {activeTab === 'dashboard' && <DashboardPage />}
-          {activeTab === 'forecast' && <ForecastPage />}
-          {activeTab === 'assistant' && <AiAssistantPage />}
-          {activeTab === 'risk' && <RiskMonitorPage />}
-          {activeTab === 'analytics' && <AnalyticsPage />}
-          {activeTab === 'settings' && <SettingsPage />}
+          {safeActiveTab === 'dashboard' && <DashboardPage onNavigateToForecast={() => setActiveTab('forecast')} onNavigateToAssistant={() => setActiveTab('assistant')} />}
+          {safeActiveTab === 'forecast' && <ForecastPage />}
+          {safeActiveTab === 'assistant' && <AiAssistantPage />}
+          {safeActiveTab === 'risk' && <RiskMonitorPage />}
+          {safeActiveTab === 'analytics' && <AnalyticsPage />}
+          {safeActiveTab === 'settings' && <SettingsPage />}
         </main>
       </div>
     </div>

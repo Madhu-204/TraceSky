@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Download, Sun, Cloud, CloudRain, CloudLightning, ChevronDown, ChevronUp } from 'lucide-react';
 import type { HourlyTelemetry } from '../../types/forecast.types';
+import { useUnitSystem } from '../../utils/unitConversion';
 
 interface HourlyGranularityTableProps {
   hours: HourlyTelemetry[];
@@ -8,6 +9,7 @@ interface HourlyGranularityTableProps {
 }
 
 export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ hours, totalAvailable }) => {
+  const { temp, wind } = useUnitSystem();
   const [showAll, setShowAll] = useState(false);
   const displayHours = showAll ? hours : hours.slice(0, 48);
 
@@ -22,7 +24,7 @@ export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ 
   };
 
   const handleExportCsv = () => {
-    const headers = ['Time', 'Condition', 'Temperature (°C)', 'Precipitation Chance (%)', 'Wind Speed (km/h)', 'Wind Direction', 'Pressure (hPa)', 'Confidence', 'Historical Temp (°C)', 'Deviation (°C)'];
+    const headers = ['Time', 'Condition', `Temperature (${temp(0).unit})`, 'Precipitation Chance (%)', `Wind Speed (${wind(0).unit})`, 'Wind Direction', 'Pressure (hPa)', 'Confidence', `Historical Temp (${temp(0).unit})`, `Deviation (${temp(0).unit})`];
     const rows = hours.map((h) => [
       h.time,
       h.condition,
@@ -67,7 +69,7 @@ export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ 
             <tr className="border-b border-[#161B33] text-[10px] font-bold text-gray-500 uppercase tracking-wider">
               <th className="pb-3 pl-2">Time</th>
               <th className="pb-3">Condition</th>
-              <th className="pb-3">Temp (°C)</th>
+              <th className="pb-3">Temp ({temp(0).unit})</th>
               <th className="pb-3">Yesterday</th>
               <th className="pb-3">Deviation</th>
               <th className="pb-3">Prec. Chance</th>
@@ -94,14 +96,14 @@ export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ 
                     <span className="text-gray-200 group-hover:text-white transition-colors">{row.condition}</span>
                   </div>
                 </td>
-                <td className="py-3.5 font-mono text-white font-semibold">{row.temperature}°</td>
+                <td className="py-3.5 font-mono text-white font-semibold">{temp(row.temperature).value}{temp(row.temperature).unit}</td>
                 <td className="py-3.5 font-mono text-gray-500">
-                  {row.historicalTemp != null ? `${row.historicalTemp}°` : '--'}
+                  {row.historicalTemp != null ? `${temp(row.historicalTemp).value}${temp(row.historicalTemp).unit}` : '--'}
                 </td>
                 <td className="py-3.5 font-mono">
                   {row.tempDeviation != null ? (
                     <span className={row.tempDeviation <= 2 ? 'text-emerald-400' : row.tempDeviation <= 5 ? 'text-amber-400' : 'text-red-400'}>
-                      {row.tempDeviation > 0 ? '+' : ''}{row.tempDeviation}°
+                      {row.tempDeviation > 0 ? '+' : ''}{temp(row.tempDeviation).value}{temp(row.tempDeviation).unit}
                     </span>
                   ) : (
                     <span className="text-gray-600">--</span>
@@ -116,7 +118,7 @@ export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ 
                   </div>
                 </td>
                 <td className="py-3.5 font-mono text-gray-400">
-                  {row.windSpeed} <span className="text-[10px] text-gray-600 font-sans">{row.windDirection}</span>
+                  {wind(row.windSpeed).value} <span className="text-[10px] text-gray-600 font-sans">{row.windDirection}</span>
                 </td>
                 <td className="py-3.5 font-mono text-gray-400">{row.pressure} hPa</td>
                 <td className="py-3.5 pr-2 text-right">

@@ -68,9 +68,10 @@ export const RiskAlertsPanel: React.FC<RiskAlertsPanelProps> = ({ risks, onViewD
               onClick={() => setActiveTab(cleanTab)}
               className={`px-3 py-1.5 text-[10px] font-bold tracking-wide rounded-lg transition-all ${
                 (activeTab === cleanTab || (tab === 'All Alerts' && activeTab === 'All'))
-                  ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(59,130,246,0.25)]'
+                  ? 'bg-blue-600 text-white'
                   : 'text-gray-400 hover:text-gray-200 hover:bg-[#121735]/40'
               }`}
+              style={(activeTab === cleanTab || (tab === 'All Alerts' && activeTab === 'All')) ? { boxShadow: 'var(--color-shadow-tab)' } : undefined}
             >
               {tab}
             </button>

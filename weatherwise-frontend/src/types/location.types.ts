@@ -233,3 +233,10 @@ export const POPULAR_CITIES: City[] = [
   { id: 'sg-sin', name: 'Singapore', countryCode: 'SG', country: 'Singapore', lat: 1.3521, lon: 103.8198 },
   { id: 'kr-seo', name: 'Seoul', countryCode: 'KR', country: 'South Korea', lat: 37.5665, lon: 126.978 },
 ];
+
+export const ALL_CITIES: City[] = [
+  ...POPULAR_CITIES,
+  ...FLATTENED_INDIAN_CITIES.filter(
+    (ic) => !POPULAR_CITIES.some((pc) => pc.id === ic.id)
+  ),
+];

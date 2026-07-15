@@ -70,3 +70,72 @@ html, body {
     background: radial-gradient(circle at 55% 42%, rgba(244, 63, 94, 0.25) 0%, rgba(245, 158, 11, 0.12) 30%, rgba(16, 185, 129, 0.04) 60%, transparent 100%);
   }
 }
+
+/* Theme accent overrides — override Tailwind's blue-* palette per theme */
+[data-theme="blue"] {
+  --color-blue-50: #eff6ff;   --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;  --color-blue-900: #1e3a8a;
+  --color-shadow-glow:  0 2px 10px rgba(59,130,246,0.2);
+  --color-shadow-strong: 0 0 15px rgba(59,130,246,0.4);
+  --color-shadow-btn:   0 4px 15px rgba(59,130,246,0.3);
+  --color-shadow-tab:   0 2px 8px  rgba(59,130,246,0.3);
+  --color-shadow-btn-sm: 0 4px 12px rgba(59,130,246,0.15);
+  --color-shadow-card:  0 0 30px  rgba(59,130,246,0.15);
+  --color-shadow-pulse: 0 0 10px  rgba(59,130,246,0.4);
+  --color-shadow-subtle: 0 0 15px rgba(59,130,246,0.05);
+  --color-drop-shadow:  0 0 10px  rgba(59,130,246,0.5);
+}
+
+[data-theme="emerald"] {
+  --color-blue-50: #ecfdf5;   --color-blue-100: #d1fae5;
+  --color-blue-200: #a7f3d0;  --color-blue-300: #6ee7b7;
+  --color-blue-400: #34d399;  --color-blue-500: #10b981;
+  --color-blue-600: #059669;  --color-blue-700: #047857;
+  --color-blue-800: #065f46;  --color-blue-900: #064e3b;
+  --color-shadow-glow:  0 2px 10px rgba(16,185,129,0.2);
+  --color-shadow-strong: 0 0 15px rgba(16,185,129,0.4);
+  --color-shadow-btn:   0 4px 15px rgba(16,185,129,0.3);
+  --color-shadow-tab:   0 2px 8px  rgba(16,185,129,0.3);
+  --color-shadow-btn-sm: 0 4px 12px rgba(16,185,129,0.15);
+  --color-shadow-card:  0 0 30px  rgba(16,185,129,0.15);
+  --color-shadow-pulse: 0 0 10px  rgba(16,185,129,0.4);
+  --color-shadow-subtle: 0 0 15px rgba(16,185,129,0.05);
+  --color-drop-shadow:  0 0 10px  rgba(16,185,129,0.5);
+}
+
+[data-theme="violet"] {
+  --color-blue-50: #f5f3ff;   --color-blue-100: #ede9fe;
+  --color-blue-200: #ddd6fe;  --color-blue-300: #c4b5fd;
+  --color-blue-400: #a78bfa;  --color-blue-500: #8b5cf6;
+  --color-blue-600: #7c3aed;  --color-blue-700: #6d28d9;
+  --color-blue-800: #5b21b6;  --color-blue-900: #4c1d95;
+  --color-shadow-glow:  0 2px 10px rgba(139,92,246,0.2);
+  --color-shadow-strong: 0 0 15px rgba(139,92,246,0.4);
+  --color-shadow-btn:   0 4px 15px rgba(139,92,246,0.3);
+  --color-shadow-tab:   0 2px 8px  rgba(139,92,246,0.3);
+  --color-shadow-btn-sm: 0 4px 12px rgba(139,92,246,0.15);
+  --color-shadow-card:  0 0 30px  rgba(139,92,246,0.15);
+  --color-shadow-pulse: 0 0 10px  rgba(139,92,246,0.4);
+  --color-shadow-subtle: 0 0 15px rgba(139,92,246,0.05);
+  --color-drop-shadow:  0 0 10px  rgba(139,92,246,0.5);
+}
+
+[data-theme="amber"] {
+  --color-blue-50: #fffbeb;   --color-blue-100: #fef3c7;
+  --color-blue-200: #fde68a;  --color-blue-300: #fcd34d;
+  --color-blue-400: #fbbf24;  --color-blue-500: #f59e0b;
+  --color-blue-600: #d97706;  --color-blue-700: #b45309;
+  --color-blue-800: #92400e;  --color-blue-900: #78350f;
+  --color-shadow-glow:  0 2px 10px rgba(245,158,11,0.2);
+  --color-shadow-strong: 0 0 15px rgba(245,158,11,0.4);
+  --color-shadow-btn:   0 4px 15px rgba(245,158,11,0.3);
+  --color-shadow-tab:   0 2px 8px  rgba(245,158,11,0.3);
+  --color-shadow-btn-sm: 0 4px 12px rgba(245,158,11,0.15);
+  --color-shadow-card:  0 0 30px  rgba(245,158,11,0.15);
+  --color-shadow-pulse: 0 0 10px  rgba(245,158,11,0.4);
+  --color-shadow-subtle: 0 0 15px rgba(245,158,11,0.05);
+  --color-drop-shadow:  0 0 10px  rgba(245,158,11,0.5);
+}

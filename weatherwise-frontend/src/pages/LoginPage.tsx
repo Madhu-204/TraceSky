@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../store/authStore';
-import type { UserRole } from '../types/auth.types';
-import { Shovel, Compass, ShieldAlert, ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { WeatherIcon } from '../components/ui/WeatherIcon';
 import { FcGoogle } from 'react-icons/fc';
 import { Toast } from '../components/ui/Toast';
@@ -16,19 +15,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNa
   const { login, googleSignIn, isLoading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('General');
   const [showPassword, setShowPassword] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const selectedRoleRef = useRef(selectedRole);
-  useEffect(() => {
-    selectedRoleRef.current = selectedRole;
-  }, [selectedRole]);
-
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: (tokenResponse) => {
-      googleSignIn(tokenResponse.access_token, selectedRoleRef.current);
+      googleSignIn(tokenResponse.access_token);
     },
     flow: 'implicit'
   });
@@ -47,15 +40,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    await login(email, password, selectedRole);
+    await login(email, password);
   };
-
-  const roleOptions = [
-    { id: 'Farmer' as UserRole, label: 'Farmer', description: 'Crop metrics & soil alerts', icon: Shovel },
-    { id: 'Traveler' as UserRole, label: 'Traveler', description: 'Route delays & clearings', icon: Compass },
-    { id: 'Officer' as UserRole, label: 'Officer', description: 'Crisis deployment logs', icon: ShieldAlert },
-    { id: 'General' as UserRole, label: 'General', description: 'Basic localized insights', icon: ShieldCheck },
-  ];
 
   return (
     <div className="w-full min-h-screen bg-[#070A13] flex items-center justify-center p-4 sm:p-6 lg:p-8 selection:bg-blue-500/30">
@@ -67,7 +53,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNa
 
           <div>
             <div className="flex items-center gap-3 mb-16">
-              <div className="bg-blue-600 p-2 rounded-xl text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]">
+              <div className="bg-blue-600 p-2 rounded-xl text-white" style={{ boxShadow: 'var(--color-shadow-strong)' }}>
                 <WeatherIcon type="logo" size={22} />
               </div>
               <span className="font-bold text-xl tracking-tight text-white">WeatherWise AI</span>
@@ -166,42 +152,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNa
                 </div>
               </div>
 
-              {/* Functional Domain Select Grid */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Account Type</label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {roleOptions.map((role) => {
-                    const Icon = role.icon;
-                    const isSelected = selectedRole === role.id;
-                    return (
-                      <button
-                        type="button"
-                        key={role.id}
-                        onClick={() => setSelectedRole(role.id)}
-                        className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
-                          isSelected
-                            ? 'bg-blue-600/10 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.05)]'
-                            : 'bg-[#111827] border-gray-800 text-gray-400 hover:border-gray-700/80 hover:text-gray-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg border mt-0.5 ${isSelected ? 'border-blue-500/30 bg-blue-500/10' : 'border-gray-800 bg-slate-900'}`}>
-                          <Icon size={14} />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-white">{role.label}</p>
-                          <p className="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">{role.description}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+
 
               {/* Form Submission Core Button trigger */}
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all shadow-[0_4px_15px_rgba(59,130,246,0.3)] text-sm mt-3 flex items-center justify-center gap-2"
+                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all text-sm mt-3 flex items-center justify-center gap-2"
+                style={{ boxShadow: 'var(--color-shadow-btn)' }}
               >
                 {isLoading ? (
                   <>

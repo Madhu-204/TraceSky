@@ -1,3 +1,5 @@
+export type ThemeAccent = 'blue' | 'emerald' | 'violet' | 'amber';
+
 export interface SystemConfig {
   unitSystem: 'METRIC' | 'IMPERIAL';
   refreshInterval: number; // in seconds
@@ -8,4 +10,5 @@ export interface SystemConfig {
   apiKey: string;
   apiStatus: 'ACTIVE' | 'REVOKED' | 'EXPIRED';
   ingestionMode: 'AGGRESSIVE' | 'BALANCED' | 'POLLING';
+  themeAccent: ThemeAccent;
 }

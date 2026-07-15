@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
-import type { UserRole } from '../types/auth.types';
-import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { WeatherIcon } from '../components/ui/WeatherIcon';
 
 interface RegisterPageProps {
@@ -13,7 +12,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('General');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   useEffect(() => {
@@ -23,7 +21,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreeToTerms) return;
-    await register(name, email, password, role);
+    await register(name, email, password);
   };
 
   return (
@@ -40,21 +38,17 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
               <ArrowLeft size={14} /> Back to Entry Gateway
             </button>
             <div className="flex items-center gap-3 mb-8">
-              <div className="bg-blue-600 p-2 rounded-xl text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]">
+              <div className="bg-blue-600 p-2 rounded-xl text-white" style={{ boxShadow: 'var(--color-shadow-strong)' }}>
                 <WeatherIcon type="logo" size={22} />
               </div>
               <span className="font-bold text-xl tracking-tight text-white">WeatherWise AI</span>
             </div>
             <h2 className="text-3xl font-extrabold tracking-tight text-white leading-tight mb-4">
-              Initialize Premium Environmental Tracking.
+              Weather Intelligence Dashboard.
             </h2>
             <p className="text-gray-400 text-xs leading-relaxed">
-              Create your access telemetry profile to subscribe to automated emergency warnings, deep multi-spectral rendering data arrays, and predictive forecasting.
+              Create your account to access weather forecasts, alerts, and AI-powered climate insights.
             </p>
-          </div>
-          <div className="bg-slate-900/60 border border-gray-800/60 p-4 rounded-xl">
-            <p className="text-xs text-blue-400 font-bold mb-1 flex items-center gap-1"><Sparkles size={12} />Standard Free Account Tier</p>
-            <p className="text-[11px] text-gray-500 leading-normal">Includes up to 3 location sensors, historical charts spanning 7 days, and automated micro-assistant prompts.</p>
           </div>
         </div>
 
@@ -114,19 +108,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Account Type</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="w-full bg-[#111827] border border-gray-800 focus:border-blue-500/50 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none transition-all appearance-none"
-                >
-                  <option value="General">General</option>
-                  <option value="Farmer">Farmer</option>
-                  <option value="Traveler">Traveler</option>
-                  <option value="Officer">Officer</option>
-                </select>
-              </div>
+
 
               <div className="flex items-start gap-3 pt-2">
                 <input

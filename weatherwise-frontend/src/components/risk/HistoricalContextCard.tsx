@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar, TrendingUp, TrendingDown } from 'lucide-react';
 import type { HistoricalComparisonData } from '../../types/riskMonitor.types';
+import { useUnitSystem } from '../../utils/unitConversion';
 
 interface HistoricalContextCardProps {
   historical: HistoricalComparisonData | null;
@@ -8,6 +9,8 @@ interface HistoricalContextCardProps {
 }
 
 export const HistoricalContextCard: React.FC<HistoricalContextCardProps> = ({ historical, deltaFacts }) => {
+  const { temp, wind } = useUnitSystem();
+
   if (!historical) {
     return (
       <div className="bg-[#0E1328] border border-[#1C2345] rounded-2xl p-5">
@@ -43,13 +46,13 @@ export const HistoricalContextCard: React.FC<HistoricalContextCardProps> = ({ hi
                 : <TrendingDown size={12} className="text-blue-400" />
               }
               <span className={`text-xs font-bold font-mono ${typeof tempDelta.value === 'number' && tempDelta.value > 0 ? 'text-rose-400' : 'text-blue-400'}`}>
-                {typeof tempDelta.value === 'number' ? (tempDelta.value > 0 ? '+' : '') : ''}{String(tempDelta.value)}°C
+                {typeof tempDelta.value === 'number' ? (tempDelta.value > 0 ? '+' : '') : ''}{String(tempDelta.value)}{temp(0).unit}
               </span>
             </div>
           </div>
           {yesterdayTemp && (
             <div className="flex justify-between text-[10px] text-gray-500 font-mono">
-              <span>Yesterday avg: {String(yesterdayTemp.value)}°C</span>
+              <span>Yesterday avg: {temp(typeof yesterdayTemp.value === 'number' ? yesterdayTemp.value : 0).value}{temp(0).unit}</span>
               <span>Confidence: {Math.round(tempDelta.certainty * 100)}%</span>
             </div>
           )}
@@ -58,20 +61,20 @@ export const HistoricalContextCard: React.FC<HistoricalContextCardProps> = ({ hi
 
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: 'Wind Δ', value: windDelta, unit: 'km/h' },
-          { label: 'Temp Δ', value: tempDelta, unit: '°C' },
-          { label: 'Temp YoY', value: null, unit: '°C', custom: metrics.temperature, hasHistorical },
+          { label: 'Wind Δ', value: windDelta, unit: wind(0).unit },
+          { label: 'Temp Δ', value: tempDelta, unit: temp(0).unit },
+          { label: 'Temp YoY', value: null, unit: temp(0).unit, custom: metrics.temperature, hasHistorical },
         ].map((item: any) => (
           <div key={item.label} className="bg-[#0A0E22] border border-[#161D3A] rounded-lg p-2.5 space-y-1">
             <p className="text-[9px] text-gray-500 font-medium">{item.label}</p>
             {item.custom ? (
               <>
                 <p className="text-xs font-bold text-white font-mono">
-                  {item.custom.current}°C
+                  {temp(item.custom.current).value}{temp(0).unit}
                 </p>
                 {item.hasHistorical ? (
                   <p className="text-[9px] text-gray-500 font-mono">
-                    vs {item.custom.historical}°C
+                    vs {temp(item.custom.historical!).value}{temp(0).unit}
                   </p>
                 ) : (
                   <p className="text-[9px] text-gray-500 font-mono italic">No historical data</p>

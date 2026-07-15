@@ -1,4 +1,5 @@
 import React from 'react';
+import { useUnitSystem } from '../../utils/unitConversion';
 import { Radio, ArrowRight, Check, X } from 'lucide-react';
 import type { SensorFact } from '../../types/expert.types';
 
@@ -9,6 +10,7 @@ interface ReasoningTraceProps {
 }
 
 export const ReasoningTrace: React.FC<ReasoningTraceProps> = ({ sensorFacts, derivedFacts, executionTimeMs }) => {
+  const { temp, wind, precip } = useUnitSystem();
   const keyFacts = sensorFacts.filter(f =>
     ['temperature', 'precipitation', 'wind_speed', 'humidity', 'uv_index', 'feels_like'].includes(f.name)
   );
@@ -34,7 +36,7 @@ export const ReasoningTrace: React.FC<ReasoningTraceProps> = ({ sensorFacts, der
                 <div key={f.name} className="bg-[#121733] border border-[#1C2340] rounded px-2 py-1 flex items-center justify-between">
                   <span className="text-[9px] text-gray-400 font-mono">{f.name}</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-bold text-white font-mono">{String(f.value)}{f.name === 'temperature' || f.name === 'feels_like' ? '°' : f.name === 'humidity' ? '%' : f.name === 'precipitation' ? 'mm' : f.name === 'wind_speed' ? 'km/h' : ''}</span>
+                    <span className="text-[10px] font-bold text-white font-mono">{(() => { if (f.name === 'temperature' || f.name === 'feels_like') { const t = temp(Number(f.value)); return `${t.value}${t.unit}`; } if (f.name === 'precipitation') { const p = precip(Number(f.value)); return `${p.value}${p.unit}`; } if (f.name === 'wind_speed') { const w = wind(Number(f.value)); return `${w.value}${w.unit}`; } if (f.name === 'humidity') { return `${String(f.value)}%`; } return String(f.value); })()}</span>
                     <span className="text-[7px] text-gray-600 font-mono">CF:{f.certainty.toFixed(2)}</span>
                   </div>
                 </div>

@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import type { User, UserRole } from '../types/auth.types';
+import type { User } from '../types/auth.types';
+import { useLocationStore } from './locationStore';
+import { useSettingsStore } from './settingsStore';
 
 const API_URL = 'http://localhost:8000/api/v1/auth';
 
@@ -12,13 +14,15 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   initAuth: () => Promise<boolean>;
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
-  googleSignIn: (googleToken: string, role: UserRole) => Promise<void>;
-  register: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  googleSignIn: (googleToken: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
+  updateProfile: (data: { name: string; location_default?: string; theme_accent?: string }) => Promise<void>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -41,6 +45,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (response.ok) {
         const user = await response.json();
         set({ user, isAuthenticated: true, isLoading: false });
+        useLocationStore.getState().hydrateFromUser(user);
+        useSettingsStore.getState().hydrateTheme(user.theme_accent);
         return true;
       } else {
         // Not authenticated
@@ -53,7 +59,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  login: async (email, password, role) => {
+  login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
       const response = await fetch(`${API_URL}/signin`, {
@@ -69,6 +75,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error(data.detail || 'Invalid credentials');
       }
 
+      useLocationStore.getState().hydrateFromUser(data.user);
+      useSettingsStore.getState().hydrateTheme(data.user.theme_accent);
       set({
         user: data.user,
         refreshToken: data.refresh_token,
@@ -85,14 +93,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async (name, email, password, role) => {
+  register: async (name, email, password) => {
     set({ isLoading: true, error: null });
     try {
       const response = await fetch(`${API_URL}/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name, email, password, role })
+        body: JSON.stringify({ name, email, password })
       });
 
       const data = await response.json();
@@ -101,6 +109,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error(data.detail || 'Registration failed');
       }
 
+      useLocationStore.getState().hydrateFromUser(data.user);
+      useSettingsStore.getState().hydrateTheme(data.user.theme_accent);
       set({
         user: data.user,
         refreshToken: data.refresh_token,
@@ -112,14 +122,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  googleSignIn: async (googleToken, role) => {
+  googleSignIn: async (googleToken) => {
     set({ isLoading: true, error: null });
     try {
       const response = await fetch(`${API_URL}/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ google_token: googleToken, role })
+        body: JSON.stringify({ google_token: googleToken })
       });
 
       const data = await response.json();
@@ -128,6 +138,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error(data.detail || 'Google Sign In failed');
       }
 
+      useLocationStore.getState().hydrateFromUser(data.user);
+      useSettingsStore.getState().hydrateTheme(data.user.theme_accent);
       set({
         user: data.user,
         refreshToken: data.refresh_token,
@@ -232,6 +244,58 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: false });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to reset password', isLoading: false });
+      throw err;
+    }
+  },
+
+  updateProfile: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: data.name,
+          location_default: data.location_default,
+          theme_accent: data.theme_accent,
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || 'Failed to update profile');
+      }
+
+      set({ user: result, isLoading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to update profile', isLoading: false });
+      throw err;
+    }
+  },
+
+  changePassword: async (oldPassword, newPassword) => {
+    console.log('[authStore] changePassword called', { oldPassword: oldPassword ? '***' : 'empty', newPassword: newPassword ? '***' : 'empty' });
+    set({ isLoading: true, error: null });
+    try {
+      console.log('[authStore] sending fetch to', `${API_URL}/change-password`);
+      const response = await fetch(`${API_URL}/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to change password');
+      }
+
+      set({ isLoading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to change password', isLoading: false });
       throw err;
     }
   },

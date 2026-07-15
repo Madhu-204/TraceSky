@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.models.user import User, RefreshToken, PasswordResetToken
-from app.schemas.auth import UserResponse, UserRole, SubscriptionTier
+from app.schemas.auth import UserResponse
 from app.core.security import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token,
@@ -21,7 +21,7 @@ class AuthService:
     def __init__(self, db: Session):
         self.db = db
 
-    def signup(self, email: str, password: str, name: str, role: str) -> Tuple[Optional[UserResponse], Optional[str]]:
+    def signup(self, email: str, password: str, name: str) -> Tuple[Optional[UserResponse], Optional[str]]:
         """
         Register a new user.
 
@@ -38,8 +38,6 @@ class AuthService:
             email=email,
             password_hash=hash_password(password),
             name=name,
-            role=role,
-            tier=SubscriptionTier.FREE.value,
             auth_provider="email",
             is_active=True
         )
@@ -73,13 +71,12 @@ class AuthService:
 
         return UserResponse.from_orm_with_role(user), None
 
-    async def google_signin(self, google_token: str, role: Optional[str] = None) -> Tuple[Optional[UserResponse], Optional[str]]:
+    async def google_signin(self, google_token: str) -> Tuple[Optional[UserResponse], Optional[str]]:
         """
         Authenticate user with Google.
 
         Args:
             google_token: Google OAuth access token or ID token
-            role: User-selected role for new accounts (Farmer, Traveler, Officer, General)
 
         Returns:
             Tuple of (UserResponse, error_message)
@@ -103,8 +100,6 @@ class AuthService:
                 email=email,
                 password_hash=None,
                 name=name,
-                role=role or UserRole.GENERAL.value,
-                tier=SubscriptionTier.FREE.value,
                 auth_provider="google",
                 google_id=google_id,
                 is_active=True,
@@ -131,7 +126,7 @@ class AuthService:
         """
         # Access token
         access_token = create_access_token(
-            data={"sub": user.id, "email": user.email, "role": user.role}
+            data={"sub": user.id, "email": user.email}
         )
 
         # Refresh token
@@ -315,6 +310,73 @@ class AuthService:
 
         self.db.commit()
         return True
+
+    def update_profile(self, user_id: str, name: str, location_default: Optional[str] = None, theme_accent: Optional[str] = None) -> Tuple[Optional[UserResponse], Optional[str]]:
+        """
+        Update user profile.
+
+        Returns:
+            Tuple of (UserResponse, error_message)
+        """
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None, "User not found"
+
+        user.name = name
+        if location_default is not None:
+            user.location_default = location_default
+        if theme_accent is not None:
+            user.theme_accent = theme_accent
+        user.updated_at = datetime.now(timezone.utc)
+
+        self.db.commit()
+        self.db.refresh(user)
+
+        return UserResponse.from_orm_with_role(user), None
+
+    def change_password(self, user_id: str, old_password: str, new_password: str) -> Tuple[bool, Optional[str]]:
+        """
+        Change password for authenticated user.
+
+        Returns:
+            Tuple of (success, error_message)
+        """
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False, "User not found"
+
+        if user.auth_provider == "google":
+            return False, "Google-authenticated accounts cannot change password here. Manage your Google account at https://myaccount.google.com"
+
+        if not user.password_hash:
+            return False, "No password set for this account"
+
+        if not verify_password(old_password, user.password_hash):
+            return False, "Current password is incorrect"
+
+        # Update password
+        new_hash = hash_password(new_password)
+        user.password_hash = new_hash
+        user.updated_at = datetime.now(timezone.utc)
+
+        # Explicitly flush User change before bulk update
+        self.db.flush()
+
+        # Revoke all refresh tokens (force re-login)
+        self.db.query(RefreshToken).filter(
+            RefreshToken.user_id == user.id,
+            RefreshToken.is_revoked == False
+        ).update({"is_revoked": True})
+
+        self.db.commit()
+
+        # Refresh to confirm persistence
+        self.db.refresh(user)
+        stored_hash = user.password_hash
+        if stored_hash != new_hash:
+            return False, "Password change failed to persist"
+
+        return True, None
 
     def get_user_by_id(self, user_id: str) -> Optional[UserResponse]:
         """

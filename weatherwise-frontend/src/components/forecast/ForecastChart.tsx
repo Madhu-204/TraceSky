@@ -1,6 +1,7 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { ChartDatapoint } from '../../types/forecast.types';
+import { useUnitSystem } from '../../utils/unitConversion';
 
 interface ForecastChartProps {
   data: ChartDatapoint[];
@@ -13,6 +14,7 @@ interface ForecastChartProps {
 export const ForecastChart: React.FC<ForecastChartProps> = ({
   data, activeRange, onRangeChange, averageConfidence, averageDeviation,
 }) => {
+  const { temp, wind } = useUnitSystem();
   const ranges = ['24H', '7D'];
 
   return (
@@ -29,7 +31,7 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
               (averageDeviation ?? 99) <= 5 ? 'text-amber-400 border-amber-500/20 bg-amber-500/10' :
               'text-red-400 border-red-500/20 bg-red-500/10'
             }`}>
-              &Delta;{averageDeviation}°C avg
+              &Delta;{temp(averageDeviation).value}{temp(averageDeviation).unit} avg
             </span>
           )}
         </div>
@@ -41,9 +43,10 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
               onClick={() => onRangeChange(range)}
               className={`px-3 py-1.5 text-[11px] font-bold tracking-wide rounded-lg transition-all ${
                 activeRange === range
-                  ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(59,130,246,0.3)]'
+                  ? 'bg-blue-600 text-white'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
+              style={activeRange === range ? { boxShadow: 'var(--color-shadow-tab)' } : undefined}
             >
               {range}
             </button>
@@ -96,11 +99,11 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
                       <div className="space-y-1 text-[11px]">
                         <div className="flex justify-between gap-4">
                           <span className="text-gray-500 font-sans">PREDICTED</span>
-                          <span className="text-blue-400 font-bold">{d.predicted}°C</span>
+                          <span className="text-blue-400 font-bold">{temp(d.predicted).value}{temp(d.predicted).unit}</span>
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-gray-500 font-sans">YESTERDAY</span>
-                          <span className="text-gray-400">{d.historical}°C</span>
+                          <span className="text-gray-400">{temp(d.historical).value}{temp(d.historical).unit}</span>
                         </div>
                         {d.tempDeviation != null && (
                           <>
@@ -108,7 +111,7 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
                             <div className="flex justify-between gap-4">
                               <span className="text-gray-500 font-sans">DEVIATION</span>
                               <span className={d.tempDeviation <= 2 ? 'text-emerald-400' : d.tempDeviation <= 5 ? 'text-amber-400' : 'text-red-400'}>
-                                {d.tempDeviation > 0 ? '+' : ''}{d.tempDeviation}°C
+                                {d.tempDeviation > 0 ? '+' : ''}{temp(d.tempDeviation).value}{temp(d.tempDeviation).unit}
                               </span>
                             </div>
                           </>
@@ -122,20 +125,20 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
                         {d.windDeviation != null && (
                           <div className="flex justify-between gap-4">
                             <span className="text-gray-500 font-sans">WIND</span>
-                            <span className="text-amber-400">{d.windDeviation > 0 ? '+' : ''}{d.windDeviation}km/h</span>
+                            <span className="text-amber-400">{d.windDeviation > 0 ? '+' : ''}{wind(d.windDeviation).value}{wind(d.windDeviation).unit}</span>
                           </div>
                         )}
                         {d.rateDeviation != null && (
                           <div className="flex justify-between gap-4">
                             <span className="text-gray-500 font-sans">RATE CHANGE</span>
                             <span className={d.rateDeviation <= 2 ? 'text-emerald-400' : d.rateDeviation <= 4 ? 'text-amber-400' : 'text-red-400'}>
-                              &Delta;{d.rateDeviation}°C/h
+                              &Delta;{temp(d.rateDeviation).value}{temp(d.rateDeviation).unit}/h
                             </span>
                           </div>
                         )}
                         {d.forecastRate != null && d.historicalRate != null && (
                           <div className="flex justify-between gap-4 text-[10px]">
-                            <span className="text-gray-600 font-sans">Forecast {d.forecastRate > 0 ? '+' : ''}{d.forecastRate}°C · Yesterday {d.historicalRate > 0 ? '+' : ''}{d.historicalRate}°C</span>
+                            <span className="text-gray-600 font-sans">Forecast {d.forecastRate > 0 ? '+' : ''}{temp(d.forecastRate).value}{temp(d.forecastRate).unit} · Yesterday {d.historicalRate > 0 ? '+' : ''}{temp(d.historicalRate).value}{temp(d.historicalRate).unit}</span>
                           </div>
                         )}
                         {d.confidenceStatus && (
