@@ -1,4 +1,5 @@
 import React from 'react';
+import { useUnitSystem } from '../../utils/unitConversion';
 import { MapPin, Droplets, Wind, Sun, Cloud, CloudRain, CloudLightning, CloudSun, CloudFog, Shield } from 'lucide-react';
 import type { CurrentWeather, HourlyForecast } from '../../services/weatherService';
 import type { DataSourceInfo, ForecastValidation } from '../../types/expert.types';
@@ -40,6 +41,7 @@ function windDirectionLabel(deg: number): string {
 }
 
 export const CurrentConditions: React.FC<CurrentConditionsProps> = ({ cityName, current, hourly, dataSource, isLoading, forecastValidation }) => {
+  const { temp, wind, precip } = useUnitSystem();
   if (isLoading || !current) {
     return (
       <div className="bg-[#0E1328] border border-[#1C2345] p-6 sm:p-8 rounded-3xl grid grid-cols-1 xl:grid-cols-12 gap-6 relative overflow-hidden shadow-xl min-h-[200px] flex items-center justify-center">
@@ -99,7 +101,7 @@ export const CurrentConditions: React.FC<CurrentConditionsProps> = ({ cityName, 
             )}
             {baselineAnchor?.anchor_confidence && (
               <span className={`text-[9px] font-bold flex items-center gap-1 ${anchorColor[baselineAnchor.anchor_confidence] || 'text-gray-500'}`}>
-                {baselineAnchor.anchor_confidence === 'HIGH' ? '✓' : baselineAnchor.anchor_confidence === 'MEDIUM' ? '~' : '!'} Anchor: {baselineAnchor.current_temperature != null ? `${Math.round(baselineAnchor.current_temperature)}°C` : '--'}
+                {baselineAnchor.anchor_confidence === 'HIGH' ? '✓' : baselineAnchor.anchor_confidence === 'MEDIUM' ? '~' : '!'} Anchor: {baselineAnchor.current_temperature != null ? `${temp(baselineAnchor.current_temperature).value}${temp(baselineAnchor.current_temperature).unit}` : '--'}
               </span>
             )}
             {dataSource && (
@@ -116,9 +118,9 @@ export const CurrentConditions: React.FC<CurrentConditionsProps> = ({ cityName, 
         <div className="flex flex-wrap items-center gap-6 sm:gap-8 pt-2">
           <div className="flex items-baseline">
             <span className="text-5xl sm:text-6xl font-black text-white font-mono tracking-tighter">
-              {Math.round(current.temperature)}
+              {temp(current.temperature).value}
             </span>
-            <span className="text-2xl font-light text-blue-400 ml-0.5">°C</span>
+            <span className="text-2xl font-light text-blue-400 ml-0.5">{temp(current.temperature).unit}</span>
           </div>
 
           <div className="space-y-1.5">
@@ -127,14 +129,14 @@ export const CurrentConditions: React.FC<CurrentConditionsProps> = ({ cityName, 
                 <Droplets size={11} className="text-blue-400" /> Humidity: {Math.round(current.humidity)}%
               </span>
               <span className="bg-[#121836] border border-[#1F2954] text-gray-300 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                <Wind size={11} className="text-cyan-400" /> Wind: {Math.round(current.wind_speed)}km/h {windDirectionLabel(current.wind_direction)}
+                <Wind size={11} className="text-cyan-400" /> Wind: {wind(current.wind_speed).value}{wind(current.wind_speed).unit} {windDirectionLabel(current.wind_direction)}
               </span>
               <span className="bg-[#121836] border border-[#1F2954] text-gray-300 px-2.5 py-1 rounded-md flex items-center gap-1.5">
                 <Sun size={11} className="text-amber-400" /> UV Index: {Math.round(current.uv_index)}
               </span>
             </div>
             <p className="text-xs text-gray-400 font-medium pl-0.5">
-              {current.condition} • Feels like {Math.round(current.feels_like)}°
+              {current.condition} • Feels like {temp(current.feels_like).value}{temp(current.feels_like).unit}
             </p>
           </div>
         </div>
@@ -178,12 +180,12 @@ export const CurrentConditions: React.FC<CurrentConditionsProps> = ({ cityName, 
                   <div className="flex items-center gap-1">
                     <span className="text-xs">{smallIconMap[h.icon] || <Cloud size={14} className="text-gray-400" />}</span>
                     <p className="text-sm font-bold text-white font-mono tracking-tight">
-                      {h.temperature != null ? `${Math.round(h.temperature)}°` : '--'}
+                      {h.temperature != null ? `${temp(h.temperature).value}${temp(h.temperature).unit}` : '--'}
                     </p>
                   </div>
                   {validation && (
                     <div className="flex items-center gap-1 text-[8px] text-gray-600 font-mono">
-                      <span>Ytd {Math.round(validation.historical_temp)}°</span>
+                      <span>Ytd {temp(validation.historical_temp).value}{temp(validation.historical_temp).unit}</span>
                       {rateDir && <span className={statusColor}>{rateDir}</span>}
                     </div>
                   )}

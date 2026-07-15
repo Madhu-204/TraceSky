@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { City, LocationData, UserLocationPreferences } from '../types/location.types';
-import { POPULAR_CITIES } from '../types/location.types';
+import { POPULAR_CITIES, ALL_CITIES } from '../types/location.types';
 
 interface LocationState extends UserLocationPreferences {
   currentLocation: LocationData | null;
@@ -13,6 +13,10 @@ interface LocationState extends UserLocationPreferences {
   clearRecentSearches: () => void;
   getCityById: (id: string) => City | undefined;
   searchCities: (query: string) => City[];
+  /** Sync defaultLocation to currentLocation if current is null and default exists */
+  syncDefaultToCurrent: () => void;
+  /** Hydrate location state from backend user data */
+  hydrateFromUser: (user: { location_default?: string }) => void;
 }
 
 const MAX_RECENT_SEARCHES = 10;
@@ -26,12 +30,15 @@ export const useLocationStore = create<LocationState>()(
       currentLocation: null,
 
       setCurrentLocation: (location: LocationData) => {
-        set({ currentLocation: location });
+        set({ currentLocation: location, defaultLocation: location.city });
         get().addRecentSearch(location.city);
       },
 
       setDefaultLocation: (city: City | null) => {
-        set({ defaultLocation: city });
+        set({
+          defaultLocation: city,
+          ...(city ? { currentLocation: { city, lastUpdated: new Date().toISOString() } } : {}),
+        });
       },
 
       addFavorite: (city: City) => {
@@ -61,6 +68,7 @@ export const useLocationStore = create<LocationState>()(
         const { favorites, recentSearches } = get();
         return (
           POPULAR_CITIES.find((c) => c.id === id) ||
+          ALL_CITIES.find((c) => c.id === id) ||
           favorites.find((c) => c.id === id) ||
           recentSearches.find((c) => c.id === id)
         );
@@ -76,11 +84,37 @@ export const useLocationStore = create<LocationState>()(
             city.countryCode.toLowerCase().includes(lowerQuery)
         ).slice(0, 10);
       },
+
+      syncDefaultToCurrent: () => {
+        const { currentLocation, defaultLocation } = get();
+        if (!currentLocation && defaultLocation) {
+          set({
+            currentLocation: {
+              city: defaultLocation,
+              lastUpdated: new Date().toISOString(),
+            },
+          });
+        }
+      },
+
+      hydrateFromUser: (user) => {
+        if (!user.location_default) return;
+        const { defaultLocation } = get();
+        if (defaultLocation) return;
+        const city = ALL_CITIES.find((c) => c.id === user.location_default);
+        if (city) {
+          set({
+            defaultLocation: city,
+            currentLocation: { city, lastUpdated: new Date().toISOString() },
+          });
+        }
+      },
     }),
     {
       name: 'weatherwise-locations',
       partialize: (state) => ({
         defaultLocation: state.defaultLocation,
+        currentLocation: state.currentLocation,
         favorites: state.favorites,
         recentSearches: state.recentSearches,
       }),

@@ -12,10 +12,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)  # None for Google-only users
     name = Column(String(255), nullable=False)
 
-    # Role and subscription - matching frontend
-    role = Column(String(20), default="General")  # Farmer, Traveler, Officer, General
-    tier = Column(String(30), default="Free Account")  # Free Account, Premium Intelligence, Enterprise Node
     location_default = Column(String(255), nullable=True)
+    theme_accent = Column(String(20), nullable=True, default='blue')
 
     # Auth provider info
     auth_provider = Column(String(20), default="email")  # "email" or "google"
@@ -24,7 +22,6 @@ class User(Base):
     # Account status
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)  # Email verified
-    is_superuser = Column(Boolean, default=False)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

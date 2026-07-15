@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { SensorFact } from '../../types/expert.types';
 import { Brain, ChevronDown, ChevronUp } from 'lucide-react';
+import { useUnitSystem } from '../../utils/unitConversion';
 
 interface RiskDerivedFactsProps {
   derivedFacts: SensorFact[];
@@ -28,6 +29,7 @@ const factDescriptionMap: Record<string, string> = {
 };
 
 export const RiskDerivedFacts: React.FC<RiskDerivedFactsProps> = ({ derivedFacts }) => {
+  const { temp, wind, precip } = useUnitSystem();
   const [expanded, setExpanded] = useState(false);
 
   if (!derivedFacts.length) {
@@ -53,15 +55,30 @@ export const RiskDerivedFacts: React.FC<RiskDerivedFactsProps> = ({ derivedFacts
       <div className="space-y-1">
         {visible.map((fact) => {
           const desc = factDescriptionMap[fact.name] || fact.name.replace(/_/g, ' ');
-          const displayValue = typeof fact.value === 'number'
-            ? (Number.isInteger(fact.value) ? fact.value.toString() : fact.value.toFixed(1))
-            : String(fact.value);
-          const unit = fact.name.includes('temp') ? '°C'
-            : fact.name.includes('wind') || fact.name.includes('gust') ? 'km/h'
-            : fact.name.includes('precip') || fact.name.includes('rain') ? 'mm'
-            : fact.name.includes('humid') ? '%'
-            : fact.name.includes('sunny') ? 'h'
-            : '';
+          const rawVal = fact.value;
+          let displayValue: string;
+          let unit: string;
+
+          if (fact.name.includes('temp')) {
+            const t = temp(typeof rawVal === 'number' ? rawVal : parseFloat(rawVal));
+            displayValue = String(t.value);
+            unit = t.unit;
+          } else if (fact.name.includes('wind') || fact.name.includes('gust')) {
+            const w = wind(typeof rawVal === 'number' ? rawVal : parseFloat(rawVal));
+            displayValue = String(w.value);
+            unit = w.unit;
+          } else if (fact.name.includes('precip') || fact.name.includes('rain')) {
+            const p = precip(typeof rawVal === 'number' ? rawVal : parseFloat(rawVal));
+            displayValue = String(p.value);
+            unit = p.unit;
+          } else {
+            displayValue = typeof rawVal === 'number'
+              ? (Number.isInteger(rawVal) ? rawVal.toString() : rawVal.toFixed(1))
+              : String(rawVal);
+            unit = fact.name.includes('humid') ? '%'
+              : fact.name.includes('sunny') ? 'h'
+              : '';
+          }
 
           return (
             <div key={fact.name} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-[#0A0E22]/50 transition-colors">

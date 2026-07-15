@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ForecastChart } from '../components/forecast/ForecastChart';
 import { MetricsGrid } from '../components/forecast/MetricsGrid';
 import { HourlyGranularityTable } from '../components/forecast/HourlyGranularityTable';
@@ -8,6 +8,7 @@ import { useAIStore } from '../store/aiStore';
 import { useLocationStore } from '../store/locationStore';
 import type { ChartDatapoint, HourlyTelemetry } from '../types/forecast.types';
 import { Cpu } from 'lucide-react';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 
 const RANGE_HOURS: Record<string, number> = { '24H': 24, '7D': 168 };
 
@@ -27,10 +28,16 @@ export const ForecastPage: React.FC = () => {
 
   const [activeRange, setActiveRange] = useState('24H');
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     fetchForecast(lat, lon, 7);
     fetchExpertAnalysis(lat, lon);
-  }, [lat, lon]);
+  }, [lat, lon, fetchForecast, fetchExpertAnalysis]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useAutoRefresh(refresh);
 
   const forecastValidation = expertAnalysis?.forecast_validation;
   const recommendations = expertAnalysis?.recommendations ?? [];

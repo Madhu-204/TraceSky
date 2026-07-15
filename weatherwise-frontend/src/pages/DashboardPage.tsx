@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { CurrentConditions } from '../components/dashboard/CurrentConditions';
 import { InferenceRiskProfile } from '../components/dashboard/InferenceRiskProfile';
 import { DerivedActions } from '../components/dashboard/DerivedActions';
@@ -7,14 +7,22 @@ import { BottomGrid } from '../components/dashboard/BottomGrid';
 import { useWeatherStore } from '../store/weatherStore';
 import { useAIStore } from '../store/aiStore';
 import { useLocationStore } from '../store/locationStore';
+import { useAuthorization } from '../hooks/useAuthorization';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 
-export const DashboardPage: React.FC = () => {
+interface DashboardPageProps {
+  onNavigateToForecast?: () => void;
+  onNavigateToAssistant?: () => void;
+}
+
+export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateToForecast, onNavigateToAssistant }) => {
   const { current, forecast, isLoading, fetchCurrent, fetchForecast } = useWeatherStore();
   const {
     expertAnalysis, isExpertLoading,
     fetchExpertAnalysis,
   } = useAIStore();
   const { currentLocation } = useLocationStore();
+  const { canAccess } = useAuthorization();
 
   const city = currentLocation?.city;
   const lat = city?.lat ?? 37.7749;
@@ -25,16 +33,26 @@ export const DashboardPage: React.FC = () => {
       : `${city.name}, ${city.countryCode}`
     : 'San Francisco, US';
 
-  useEffect(() => {
+  const hasExpert = canAccess('expert-analysis');
+
+  const refresh = useCallback(() => {
     fetchCurrent(lat, lon);
     fetchForecast(lat, lon, 7);
-    fetchExpertAnalysis(lat, lon);
-  }, [lat, lon]);
+    if (hasExpert) {
+      fetchExpertAnalysis(lat, lon);
+    }
+  }, [lat, lon, fetchCurrent, fetchForecast, fetchExpertAnalysis, hasExpert]);
 
-  const expertRisks = expertAnalysis?.risks ?? [];
-  const expertRecs = expertAnalysis?.recommendations ?? [];
-  const expertMetrics = expertAnalysis?.inference_metrics ?? null;
-  const forecastValidation = expertAnalysis?.forecast_validation ?? null;
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useAutoRefresh(refresh);
+
+  const expertRisks = hasExpert ? (expertAnalysis?.risks ?? []) : [];
+  const expertRecs = hasExpert ? (expertAnalysis?.recommendations ?? []) : [];
+  const expertMetrics = hasExpert ? (expertAnalysis?.inference_metrics ?? null) : null;
+  const forecastValidation = hasExpert ? (expertAnalysis?.forecast_validation ?? null) : null;
 
   return (
     <div className="pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all">
@@ -42,32 +60,39 @@ export const DashboardPage: React.FC = () => {
         cityName={cityName}
         current={current}
         hourly={forecast?.hourly ?? []}
-        dataSource={expertAnalysis?.data_source}
+        dataSource={hasExpert ? expertAnalysis?.data_source : null}
         isLoading={isLoading || isExpertLoading}
         forecastValidation={forecastValidation}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <InferenceRiskProfile
-          risks={expertRisks}
-        />
-        <DerivedActions
-          recommendations={expertRecs}
-          metrics={expertMetrics}
-          onAskAI={() => {}}
-          isLoading={isExpertLoading}
-        />
-        <ReasoningTrace
-          sensorFacts={expertAnalysis?.sensor_facts ?? []}
-          derivedFacts={expertAnalysis?.derived_facts ?? []}
-          executionTimeMs={expertAnalysis?.inference_metrics?.execution_time_ms ?? 0}
-        />
+        {hasExpert ? (
+          <>
+            <InferenceRiskProfile risks={expertRisks} />
+            <DerivedActions
+              recommendations={expertRecs}
+              metrics={expertMetrics}
+              onAskAI={onNavigateToAssistant ?? (() => {})}
+              isLoading={isExpertLoading}
+            />
+            <ReasoningTrace
+              sensorFacts={expertAnalysis?.sensor_facts ?? []}
+              derivedFacts={expertAnalysis?.derived_facts ?? []}
+              executionTimeMs={expertAnalysis?.inference_metrics?.execution_time_ms ?? 0}
+            />
+          </>
+        ) : (
+          <div className="col-span-full bg-[#0E1328] border border-[#1C2345] rounded-xl p-6 text-center">
+            <p className="text-sm text-gray-400">Sign in as an <span className="text-blue-400 font-bold">Officer</span> to view the expert analysis dashboard.</p>
+          </div>
+        )}
       </div>
 
       <BottomGrid
         daily={forecast?.daily ?? []}
-        evaluatedByDomain={expertAnalysis?.evaluated_by_domain}
+        evaluatedByDomain={hasExpert ? expertAnalysis?.evaluated_by_domain : undefined}
         inferenceMetrics={expertMetrics}
+        onDetailedView={onNavigateToForecast}
       />
     </div>
   );

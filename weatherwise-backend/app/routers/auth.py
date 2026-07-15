@@ -1,3 +1,5 @@
+from typing import List, Sequence
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 
@@ -6,7 +8,8 @@ from app.schemas.auth import (
     SignUpRequest, SignUpResponse, SignInRequest, SignInResponse,
     GoogleSignInRequest, ForgotPasswordRequest, ResetPasswordRequest,
     RefreshTokenRequest, TokenRefreshResponse, LogoutResponse,
-    ForgotPasswordResponse, MessageResponse, UserResponse, ErrorResponse
+    ForgotPasswordResponse, MessageResponse, UserResponse, ErrorResponse,
+    ChangePasswordRequest, UpdateProfileRequest
 )
 from app.services.auth_service import AuthService
 from app.core.security import decode_token, COOKIE_NAME, COOKIE_SECURE, COOKIE_HTTPONLY, COOKIE_SAMESITE, COOKIE_MAX_AGE
@@ -66,8 +69,7 @@ def signup(body: SignUpRequest, http_request: Request, response: Response, db: S
     user, error = auth_service.signup(
         email=body.email,
         password=body.password,
-        name=body.name,
-        role=body.role.value
+        name=body.name
     )
 
     if error:
@@ -134,7 +136,7 @@ async def google_signin(body: GoogleSignInRequest, http_request: Request, respon
     """Sign in with Google OAuth."""
     auth_service = AuthService(db)
 
-    user, error = await auth_service.google_signin(body.google_token, body.role.value if body.role else None)
+    user, error = await auth_service.google_signin(body.google_token)
 
     if error:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=error)
@@ -237,6 +239,49 @@ def logout(
     response.delete_cookie(key="refresh_token", path="/")
 
     return LogoutResponse()
+
+
+@router.put("/profile", response_model=UserResponse)
+def update_profile(
+    body: UpdateProfileRequest,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Update current user's profile."""
+    auth_service = AuthService(db)
+
+    user, error = auth_service.update_profile(
+        user_id=current_user.id,
+        name=body.name,
+        location_default=body.location_default,
+        theme_accent=body.theme_accent,
+    )
+
+    if error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+
+    return user
+
+
+@router.post("/change-password", response_model=MessageResponse)
+def change_password(
+    body: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Change password for authenticated user."""
+    auth_service = AuthService(db)
+
+    success, error = auth_service.change_password(
+        user_id=current_user.id,
+        old_password=body.old_password,
+        new_password=body.new_password
+    )
+
+    if error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+
+    return MessageResponse(message="Password changed successfully. Please sign in again.")
 
 
 @router.get("/me", response_model=UserResponse)

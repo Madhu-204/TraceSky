@@ -91,7 +91,7 @@ export interface HistoricalComparison {
 }
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
+  const res = await fetch(url, { ...options, credentials: 'include' });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail || `HTTP ${res.status}`);
@@ -146,6 +146,15 @@ export async function getExpertAnalysis(lat: number, lon: number): Promise<impor
 export async function getRiskMonitor(lat: number, lon: number): Promise<import('../types/riskMonitor.types').RiskMonitorReport> {
   const resp = await fetchJson<ApiResponse<import('../types/riskMonitor.types').RiskMonitorReport>>(
     `${AI_BASE}/risk-monitor?lat=${lat}&lon=${lon}`
+  );
+  return resp.data;
+}
+
+export async function getAnalyticsReport(lat: number, lon: number, refresh?: boolean): Promise<import('../types/analytics.types').AnalyticsReport> {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+  if (refresh) params.set('refresh', 'true');
+  const resp = await fetchJson<ApiResponse<import('../types/analytics.types').AnalyticsReport>>(
+    `${AI_BASE}/analytics?${params.toString()}`
   );
   return resp.data;
 }

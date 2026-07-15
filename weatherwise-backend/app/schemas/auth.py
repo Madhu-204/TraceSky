@@ -1,20 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
-from enum import Enum
-
-
-# ==================== Enums ====================
-class UserRole(str, Enum):
-    FARMER = "Farmer"
-    TRAVELER = "Traveler"
-    OFFICER = "Officer"
-    GENERAL = "General"
-
-
-class SubscriptionTier(str, Enum):
-    FREE = "Free Account"
-    PREMIUM = "Premium Intelligence"
-    ENTERPRISE = "Enterprise Node"
 
 
 # ==================== Request Schemas ====================
@@ -25,20 +10,17 @@ class SignUpRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(..., min_length=8)
-    role: UserRole = UserRole.GENERAL
 
 
 class SignInRequest(BaseModel):
     """Request schema for user login."""
     email: EmailStr
     password: str
-    role: Optional[UserRole] = None  # Frontend sends role on login
 
 
 class GoogleSignInRequest(BaseModel):
     """Request schema for Google OAuth login."""
     google_token: str = Field(..., min_length=10)
-    role: Optional[UserRole] = None  # Frontend sends role
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -63,6 +45,13 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8)
 
 
+class UpdateProfileRequest(BaseModel):
+    """Request schema for updating user profile."""
+    name: str = Field(..., min_length=2, max_length=100)
+    location_default: Optional[str] = None
+    theme_accent: Optional[str] = None
+
+
 # ==================== Response Schemas ====================
 
 
@@ -71,9 +60,9 @@ class UserResponse(BaseModel):
     id: str
     name: str
     email: str
-    role: UserRole
-    tier: SubscriptionTier
     location_default: Optional[str] = None
+    auth_provider: str = "email"
+    theme_accent: str = "blue"
 
     class Config:
         from_attributes = True
@@ -85,9 +74,9 @@ class UserResponse(BaseModel):
             id=user.id,
             name=user.name,
             email=user.email,
-            role=UserRole(user.role),
-            tier=SubscriptionTier(user.tier),
-            location_default=user.location_default
+            location_default=user.location_default,
+            auth_provider=user.auth_provider,
+            theme_accent=user.theme_accent or "blue",
         )
 
 

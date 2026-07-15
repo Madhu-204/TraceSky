@@ -49,6 +49,10 @@ interface AIState {
   isRiskMonitorLoading: boolean;
   riskMonitorError: string | null;
 
+  analyticsReport: import('../types/analytics.types').AnalyticsReport | null;
+  isAnalyticsLoading: boolean;
+  analyticsError: string | null;
+
   suggestionTokens: SuggestionToken[];
 
   fetchRisks: (lat: number, lon: number) => Promise<void>;
@@ -58,6 +62,7 @@ interface AIState {
   fetchSolarSuggestions: (lat: number, lon: number) => Promise<void>;
   fetchExpertAnalysis: (lat: number, lon: number) => Promise<void>;
   fetchRiskMonitor: (lat: number, lon: number) => Promise<void>;
+  fetchAnalyticsReport: (lat: number, lon: number, refresh?: boolean) => Promise<void>;
   sendMessage: (lat: number, lon: number, text: string) => Promise<void>;
   clearMessages: () => void;
   clearError: () => void;
@@ -77,6 +82,10 @@ export const useAIStore = create<AIState>((set, get) => ({
   riskMonitorReport: null,
   isRiskMonitorLoading: false,
   riskMonitorError: null,
+
+  analyticsReport: null,
+  isAnalyticsLoading: false,
+  analyticsError: null,
   messages: [
     {
       id: 'msg-init',
@@ -166,6 +175,19 @@ export const useAIStore = create<AIState>((set, get) => ({
       set({
         riskMonitorError: err instanceof Error ? err.message : 'Failed to fetch risk monitor report',
         isRiskMonitorLoading: false,
+      });
+    }
+  },
+
+  fetchAnalyticsReport: async (lat, lon, refresh) => {
+    set({ isAnalyticsLoading: true, analyticsError: null });
+    try {
+      const data = await aiService.getAnalyticsReport(lat, lon, refresh);
+      set({ analyticsReport: data, isAnalyticsLoading: false });
+    } catch (err) {
+      set({
+        analyticsError: err instanceof Error ? err.message : 'Failed to fetch analytics report',
+        isAnalyticsLoading: false,
       });
     }
   },

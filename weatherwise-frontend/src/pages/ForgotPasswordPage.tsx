@@ -47,7 +47,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               <ArrowLeft size={14} /> Back to Sign In
             </button>
             <div className="flex items-center gap-3 mb-8">
-              <div className="bg-blue-600 p-2 rounded-xl text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]">
+              <div className="bg-blue-600 p-2 rounded-xl text-white" style={{ boxShadow: 'var(--color-shadow-strong)' }}>
                 <WeatherIcon type="logo" size={22} />
               </div>
               <span className="font-bold text-xl tracking-tight text-white">WeatherWise AI</span>
@@ -103,7 +103,8 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all shadow-[0_4px_15px_rgba(59,130,246,0.3)] text-sm flex items-center justify-center gap-2"
+                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                style={{ boxShadow: 'var(--color-shadow-btn)' }}
               >
                 {isLoading ? (
                   <>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { RiskAlertsPanel } from '../components/risk/RiskAlertsPanel';
 import { RiskSensorFacts } from '../components/risk/RiskSensorFacts';
 import { RiskDerivedFacts } from '../components/risk/RiskDerivedFacts';
@@ -6,9 +6,11 @@ import { HistoricalContextCard } from '../components/risk/HistoricalContextCard'
 import { InferenceMetricsCard } from '../components/risk/InferenceMetricsCard';
 import { RiskRecommendations } from '../components/risk/RiskRecommendations';
 import { RiskRuleDetailModal } from '../components/risk/RiskRuleDetailModal';
-import { GeospatialCanvas } from '../components/risk/GeospatialCanvas';
+import { KnowledgeBaseDashboard } from '../components/risk/KnowledgeBaseDashboard';
 import { useAIStore } from '../store/aiStore';
 import { useLocationStore } from '../store/locationStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { Cpu, Shield } from 'lucide-react';
 import type { ExpertRisk } from '../types/expert.types';
 import type { DayMatrixPoint } from '../types/risk.types';
@@ -19,14 +21,27 @@ export const RiskMonitorPage: React.FC = () => {
   const city = currentLocation?.city;
   const lat = city?.lat ?? 37.7749;
   const lon = city?.lon ?? -122.4194;
+  const alertRadius = useSettingsStore((s) => s.config.alertRadius);
 
   const [selectedRisk, setSelectedRisk] = useState<ExpertRisk | null>(null);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     fetchRiskMonitor(lat, lon);
-  }, [lat, lon]);
+  }, [lat, lon, fetchRiskMonitor]);
 
-  const risks = riskMonitorReport?.risks ?? [];
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useAutoRefresh(refresh);
+
+  const allRisks = riskMonitorReport?.risks ?? [];
+  const risks = useMemo(() => {
+    if (alertRadius >= 100) return allRisks;
+    const ratio = alertRadius / 100;
+    return allRisks.filter((r) => r.percentage <= ratio * 100);
+  }, [allRisks, alertRadius]);
+
   const recommendations = riskMonitorReport?.recommendations ?? [];
   const sensorFacts = riskMonitorReport?.sensor_facts ?? [];
   const derivedFacts = riskMonitorReport?.derived_facts ?? [];
@@ -103,8 +118,14 @@ export const RiskMonitorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Full-width Geospatial Canvas */}
-      <GeospatialCanvas timelineData={timelinePoints} />
+      {/* Full-width Knowledge Base Dashboard */}
+      <KnowledgeBaseDashboard
+        metrics={metrics}
+        evaluatedByDomain={evaluatedByDomain}
+        risks={risks}
+        timelineData={timelinePoints}
+        dataSource={dataSource}
+      />
 
       {/* Risk alerts horizontal strip — only when risks exist */}
       {risks.length > 0 && (

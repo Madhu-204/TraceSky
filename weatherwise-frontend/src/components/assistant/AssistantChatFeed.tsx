@@ -80,9 +80,10 @@ export const AssistantChatFeed: React.FC<AssistantChatFeedProps> = ({ messages }
           >
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
               isAI
-                ? 'bg-blue-600/10 border-blue-500/20 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.15)]'
+                ? 'bg-blue-600/10 border-blue-500/20 text-blue-400'
                 : 'bg-[#151C3A] border-[#252F5A] text-gray-300'
-            }`}>
+            }`}
+            style={isAI ? { boxShadow: 'var(--color-shadow-btn-sm)' } : undefined}>
               {isAI ? <Sparkles size={14} /> : <User size={14} />}
             </div>
 
@@ -96,8 +97,9 @@ export const AssistantChatFeed: React.FC<AssistantChatFeedProps> = ({ messages }
               <div className={`p-4 rounded-2xl text-xs leading-relaxed font-medium transition-all ${
                 isAI
                   ? 'bg-[#0E1328] border border-[#1C2345] text-gray-200'
-                  : 'bg-blue-600 text-white shadow-[0_4px_12px_rgba(59,130,246,0.15)] font-semibold'
-              }`}>
+                  : 'bg-blue-600 text-white font-semibold'
+              }`}
+              style={!isAI ? { boxShadow: 'var(--color-shadow-btn-sm)' } : undefined}>
                 {(() => {
                   const renderBold = (text: string) =>
                     text.split('**').map((chunk, idx) =>
@@ -171,11 +173,11 @@ export const AssistantChatFeed: React.FC<AssistantChatFeedProps> = ({ messages }
                         <div key={index} className="h-full flex flex-col justify-end group relative">
                           <div
                             className={`w-full rounded-sm transition-all relative ${
-                              pt.isCurrent
-                                ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]'
-                                : 'bg-[#1D254C] hover:bg-[#283366]'
+                               pt.isCurrent
+                                 ? 'bg-blue-500'
+                                 : 'bg-[#1D254C] hover:bg-[#283366]'
                             }`}
-                            style={{ height: `${pt.value}%` }}
+                            style={{ height: `${pt.value}%`, boxShadow: pt.isCurrent ? 'var(--color-shadow-pulse)' : 'none' }}
                           >
                             {pt.isCurrent && (
                               <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-300 rounded-full" />

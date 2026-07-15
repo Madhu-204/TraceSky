@@ -2,6 +2,7 @@ import React from 'react';
 import type { SensorFact } from '../../types/expert.types';
 import type { CurrentTelemetry } from '../../types/riskMonitor.types';
 import { Thermometer, Droplets, Wind, CloudRain, Sun, Eye } from 'lucide-react';
+import { useUnitSystem } from '../../utils/unitConversion';
 
 interface RiskSensorFactsProps {
   sensorFacts: SensorFact[];
@@ -28,16 +29,9 @@ const factLabelMap: Record<string, string> = {
   wind_direction: 'Wind Direction',
 };
 
-const factUnitMap: Record<string, string> = {
-  temperature: '°C',
-  feels_like: '°C',
-  humidity: '%',
-  wind_speed: 'km/h',
-  precipitation: 'mm',
-  uv_index: '',
-};
-
 export const RiskSensorFacts: React.FC<RiskSensorFactsProps> = ({ sensorFacts, currentTelemetry }) => {
+  const { temp, wind, precip } = useUnitSystem();
+
   if (!sensorFacts.length && !currentTelemetry) {
     return (
       <div className="bg-[#0E1328] border border-[#1C2345] rounded-2xl p-5">
@@ -61,8 +55,26 @@ export const RiskSensorFacts: React.FC<RiskSensorFactsProps> = ({ sensorFacts, c
       <div className="grid grid-cols-2 gap-3">
         {displayFacts.map((fact) => {
           const label = factLabelMap[fact.name] || fact.name.replace(/_/g, ' ');
-          const unit = factUnitMap[fact.name] || '';
-          const displayValue = typeof fact.value === 'number' ? fact.value.toFixed(1) : fact.value;
+          const rawVal = fact.value;
+          let displayValue: string;
+          let unit: string;
+
+          if (fact.name === 'temperature' || fact.name === 'feels_like') {
+            const t = temp(typeof rawVal === 'number' ? rawVal : parseFloat(rawVal));
+            displayValue = String(t.value);
+            unit = t.unit;
+          } else if (fact.name === 'wind_speed') {
+            const w = wind(typeof rawVal === 'number' ? rawVal : parseFloat(rawVal));
+            displayValue = String(w.value);
+            unit = w.unit;
+          } else if (fact.name === 'precipitation') {
+            const p = precip(typeof rawVal === 'number' ? rawVal : parseFloat(rawVal));
+            displayValue = String(p.value);
+            unit = p.unit;
+          } else {
+            unit = fact.name === 'humidity' ? '%' : fact.name === 'uv_index' ? '' : '';
+            displayValue = typeof rawVal === 'number' ? rawVal.toFixed(1) : String(rawVal);
+          }
 
           return (
             <div key={fact.name} className="bg-[#0A0E22] border border-[#161D3A] rounded-lg p-3 space-y-1.5">

@@ -2,6 +2,7 @@ import React from 'react';
 import { Droplets, Wind, CloudFog } from 'lucide-react';
 import type { DailyForecast, HourlyForecast } from '../../services/weatherService';
 import type { ForecastValidation } from '../../types/expert.types';
+import { useUnitSystem } from '../../utils/unitConversion';
 
 interface MetricsGridProps {
   daily: DailyForecast[];
@@ -10,6 +11,7 @@ interface MetricsGridProps {
 }
 
 export const MetricsGrid: React.FC<MetricsGridProps> = ({ daily, hourly, validation }) => {
+  const { wind } = useUnitSystem();
   const hourlyToday = hourly.filter((h) => h.is_today);
 
   const avgTemp = hourlyToday.length > 0
@@ -98,8 +100,8 @@ export const MetricsGrid: React.FC<MetricsGridProps> = ({ daily, hourly, validat
             <path d="M 0 45 Q 40 10, 100 35 T 200 20" fill="none" stroke="#F59E0B" strokeWidth={1.5} />
           </svg>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-            <span className="text-2xl font-black font-mono tracking-tight text-white">{avgWind}</span>
-            <p className="text-[9px] text-gray-500 uppercase font-bold tracking-wider font-mono">km/h avg</p>
+            <span className="text-2xl font-black font-mono tracking-tight text-white">{wind(avgWind).value}</span>
+            <p className="text-[9px] text-gray-500 uppercase font-bold tracking-wider font-mono">{wind(0).unit} avg</p>
           </div>
         </div>
         <div className={`text-[10px] font-bold text-center mt-1 ${windColor}`}>

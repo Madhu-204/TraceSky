@@ -1,8 +1,10 @@
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 
+from app.routers.auth import get_current_user
+from app.schemas.auth import UserResponse
 from app.services.weather_service import WeatherService
 
 router = APIRouter(prefix="/api/v1/weather", tags=["Weather"])
@@ -12,6 +14,7 @@ router = APIRouter(prefix="/api/v1/weather", tags=["Weather"])
 async def get_current_weather(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = WeatherService()
     try:
@@ -31,6 +34,7 @@ async def get_forecast(
     lat: float = Query(..., description="Latitude"),
     lon: float = Query(..., description="Longitude"),
     days: int = Query(7, ge=1, le=16, description="Number of forecast days"),
+    _: UserResponse = Depends(get_current_user),
 ):
     svc = WeatherService()
     try:
@@ -51,6 +55,7 @@ async def get_historical(
     lon: float = Query(..., description="Longitude"),
     start_date: str = Query(..., description="Start date (YYYY-MM-DD)"),
     end_date: str = Query(..., description="End date (YYYY-MM-DD)"),
+    _: UserResponse = Depends(get_current_user),
 ):
     try:
         start = date.fromisoformat(start_date)

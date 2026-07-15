@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shield, TrendingDown, Clock, Brain, Lightbulb, AlertTriangle, CheckCircle } from 'lucide-react';
 import type { ForecastValidation, ExpertRecommendation, InferenceMetrics } from '../../types/expert.types';
+import { useUnitSystem } from '../../utils/unitConversion';
 
 interface ForecastExpertInsightsProps {
   validation: ForecastValidation | null | undefined;
@@ -12,6 +13,7 @@ interface ForecastExpertInsightsProps {
 export const ForecastExpertInsights: React.FC<ForecastExpertInsightsProps> = ({
   validation, recommendations, metrics, generatedAt,
 }) => {
+  const { temp } = useUnitSystem();
   const status = validation?.overall_status ?? 'NONE';
   const avgConfidence = validation?.average_confidence ?? 0;
   const avgDeviation = validation?.average_temp_deviation;
@@ -67,7 +69,7 @@ export const ForecastExpertInsights: React.FC<ForecastExpertInsightsProps> = ({
         <div className="bg-[#111630] border border-[#1C2340] rounded-xl p-3 space-y-1">
           <p className="text-[9px] text-gray-500 font-bold tracking-wider uppercase">Temp Deviation</p>
           <p className="text-lg font-black font-mono text-white">
-            {avgDeviation != null ? `±${avgDeviation}°C` : '--'}
+            {avgDeviation != null ? `±${temp(avgDeviation).value}${temp(avgDeviation).unit}` : '--'}
           </p>
         </div>
 
