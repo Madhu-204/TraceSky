@@ -9,7 +9,7 @@ load_dotenv()
 # Database URL
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "sqlite:///./weatherwise.db"
+    "sqlite:///./tracesky.db"
 )
 
 # Create engine

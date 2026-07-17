@@ -63,7 +63,7 @@ def _conversational_risk_summary(risks: list[dict]) -> str:
 
 
 FIRST_VISIT_MESSAGE = (
-    "Welcome to WeatherWise! I'm your weather intelligence assistant. "
+    "Welcome to TraceSky! I'm your weather intelligence assistant. "
     "I use an expert system with over 50 rules to analyze weather data in real time.\n\n"
     "You can ask me about:\n"
     "  • Current weather conditions\n"
@@ -955,7 +955,7 @@ class AIService:
                 "wise_error": round(wise_error, 2),
                 "improvement_pct": improvement,
                 "status": status,
-                "reasoning": f"WeatherWise AI confidence-adjusted value ({wise_val}{unit}) "
+                "reasoning": f"TraceSky AI confidence-adjusted value ({wise_val}{unit}) "
                             f"deviates from actual ({actual_val}{unit}) by {wise_error:.1f}{unit}, "
                             f"vs source model error of {source_error:.1f}{unit}. "
                             f"{'Improvement' if adjusted_better else 'No improvement'}: {error_reduced_pct:.0f}% "
@@ -965,7 +965,7 @@ class AIService:
                 "explanation_chain": [
                     {
                         "rule_id": f"BENCHMARK-{var_key.upper()}-01",
-                        "rule_description": f"WeatherWise AI {var_key} error must be <= source model error",
+                        "rule_description": f"TraceSky AI {var_key} error must be <= source model error",
                         "certainty": round(avg_conf, 2),
                         "conditions": [
                             {"fact": f"{var_key}_wise_error", "operator": "lte", "expected": str(round(source_error, 2)),
@@ -989,7 +989,7 @@ class AIService:
 
         return {
             "rows": rows,
-            "overall_assessment": f"WeatherWise AI shows {avg_improvement:.0f}% average improvement "
+            "overall_assessment": f"TraceSky AI shows {avg_improvement:.0f}% average improvement "
                                 f"over raw source model across {optimal_count}/3 variables. "
                                 f"The AI confidence-weighting approach effectively blends forecast data "
                                 f"with historical norms based on inference confidence (CF: {avg_conf:.2f}).",
@@ -1036,7 +1036,7 @@ class AIService:
         )
 
         parts.append(
-            f"Benchmark: WeatherWise AI outperforms source model in {improved}/{len(rows)} "
+            f"Benchmark: TraceSky AI outperforms source model in {improved}/{len(rows)} "
             f"categories (CF: {bench_cf:.2f}). "
             f"Confidence-weighted adjustment reduces average error across all variables."
         )

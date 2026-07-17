@@ -16,7 +16,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 15  # 15 minutes - short-lived
 REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 days - for rotation
 
 # ==================== Cookie Configuration ====================
-COOKIE_NAME = "weatherwise_token"
+COOKIE_NAME = "tracesky_token"
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"  # HTTPS only in production
 COOKIE_HTTPONLY = True  # Cannot be accessed via JavaScript
 COOKIE_SAMESITE = "lax"  # CSRF protection

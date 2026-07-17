@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActi
 
         <div className="flex items-center gap-2">
           <WeatherIcon type="logo" size={18} className="text-blue-400" />
-          <span className="text-sm font-bold text-white">WeatherWise</span>
+          <span className="text-sm font-bold text-white">TraceSky</span>
         </div>
 
         <Bell size={18} className="text-gray-400" />

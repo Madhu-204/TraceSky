@@ -50,7 +50,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               <div className="bg-blue-600 p-2 rounded-xl text-white" style={{ boxShadow: 'var(--color-shadow-strong)' }}>
                 <WeatherIcon type="logo" size={22} />
               </div>
-              <span className="font-bold text-xl tracking-tight text-white">WeatherWise</span>
+              <span className="font-bold text-xl tracking-tight text-white">TraceSky</span>
             </div>
             <h2 className="text-3xl font-extrabold tracking-tight text-white leading-tight mb-4">
               Reset Your Account Access Credentials.

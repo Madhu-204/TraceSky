@@ -111,7 +111,7 @@ export const useLocationStore = create<LocationState>()(
       },
     }),
     {
-      name: 'weatherwise-locations',
+      name: 'tracesky-locations',
       partialize: (state) => ({
         defaultLocation: state.defaultLocation,
         currentLocation: state.currentLocation,

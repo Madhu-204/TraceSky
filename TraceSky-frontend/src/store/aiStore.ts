@@ -91,7 +91,7 @@ export const useAIStore = create<AIState>((set, get) => ({
       id: 'msg-init',
       sender: 'assistant',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: 'Welcome to WeatherWise! I\'m your weather intelligence assistant. I use an expert system with over 50 rules to analyze weather data in real time.\n\nYou can ask me about:\n  • Current weather conditions\n  • Flood, storm, or heat risks\n  • Forecasts and outlooks\n  • Historical comparisons\n  • Farming advice\n  • Solar energy planning\n\nWhat would you like to know about your local weather?',
+      text: 'Welcome to TraceSky! I\'m your weather intelligence assistant. I use an expert system with over 50 rules to analyze weather data in real time.\n\nYou can ask me about:\n  • Current weather conditions\n  • Flood, storm, or heat risks\n  • Forecasts and outlooks\n  • Historical comparisons\n  • Farming advice\n  • Solar energy planning\n\nWhat would you like to know about your local weather?',
     },
   ],
   isLoading: false,

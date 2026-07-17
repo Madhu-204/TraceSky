@@ -56,11 +56,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNa
               <div className="bg-blue-600 p-2 rounded-xl text-white" style={{ boxShadow: 'var(--color-shadow-strong)' }}>
                 <WeatherIcon type="logo" size={22} />
               </div>
-              <span className="font-bold text-xl tracking-tight text-white">WeatherWise</span>
+              <span className="font-bold text-xl tracking-tight text-white">TraceSky</span>
             </div>
 
             <h2 className="text-4xl font-extrabold tracking-tight text-white leading-[1.15] mb-6">
-              WeatherWise <br />
+              TraceSky <br />
               <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Expert System.</span>
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
@@ -73,7 +73,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNa
               <p className="text-[10px] font-bold text-blue-500 tracking-widest uppercase mb-1">Forward-Chaining Engine</p>
               <p className="text-xs text-gray-400">65+ rules across 6 domains evaluated in real time with full traceability.</p>
             </div>
-            <p className="text-[11px] text-gray-500">© 2026 WeatherWise Labs Inc.</p>
+            <p className="text-[11px] text-gray-500">© 2026 TraceSky Labs Inc.</p>
           </div>
         </div>
 
