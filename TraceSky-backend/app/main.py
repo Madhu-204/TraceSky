@@ -7,8 +7,8 @@ from app.core.security import CORS_ORIGINS
 
 # Create FastAPI app
 app = FastAPI(
-    title="WeatherWise AI API",
-    description="Backend API for WeatherWise AI application",
+    title="TraceSky AI API",
+    description="Backend API for TraceSky AI application",
     version="1.0.0"
 )
 
@@ -36,7 +36,7 @@ app.include_router(ai.router)
 # Root endpoint
 @app.get("/")
 def root():
-    return {"message": "WeatherWise AI API", "status": "running"}
+    return {"message": "TraceSky AI API", "status": "running"}
 
 
 # Health check endpoint

@@ -13,7 +13,7 @@ export const DataManagement: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `weatherwise-settings-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `tracesky-settings-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     setExported(true);

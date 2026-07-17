@@ -71,7 +71,7 @@ export const useSettingsStore = create<SettingsState>()(
   },
     }),
     {
-      name: 'weatherwise-settings',
+      name: 'tracesky-settings',
       partialize: (state) => ({ config: state.config }),
       onRehydrateStorage: () => (state) => {
         if (state) {

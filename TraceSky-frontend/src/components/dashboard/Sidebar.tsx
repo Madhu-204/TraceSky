@@ -33,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
             <WeatherIcon type="logo" size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-white tracking-wide">WeatherWise</h1>
+            <h1 className="text-sm font-bold text-white tracking-wide">TraceSky</h1>
           </div>
         </div>
 

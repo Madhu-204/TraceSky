@@ -163,7 +163,7 @@ export const ForecastPage: React.FC = () => {
             <Cpu size={14} />
           </div>
           <div>
-            <p className="text-white font-bold tracking-wide">WeatherWise Expert System V4</p>
+            <p className="text-white font-bold tracking-wide">TraceSky Expert System V4</p>
             <p className="text-[10px] text-gray-500 font-medium">
               Latest sync: {forecast?.generated_at ? `${Math.round((Date.now() - new Date(forecast.generated_at).getTime()) / 60000)} min ago` : '--'}. Data ingested from Open Meteo network. Historical cross-validation active.
             </p>

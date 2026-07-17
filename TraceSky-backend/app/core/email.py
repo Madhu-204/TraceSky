@@ -11,7 +11,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "")
-SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "WeatherWise AI")
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "TraceSky AI")
 
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
@@ -37,7 +37,7 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
 
 def send_password_reset_email(to_email: str, reset_url: str) -> bool:
     """Send a password reset email."""
-    subject = "Password Reset - WeatherWise AI"
+    subject = "Password Reset - TraceSky AI"
     html_body = f"""
     <!DOCTYPE html>
     <html>
@@ -56,7 +56,7 @@ def send_password_reset_email(to_email: str, reset_url: str) -> bool:
                   </div>
                   <h1 style="color:#ffffff;font-size:24px;font-weight:800;margin:0 0 8px;">Password Reset</h1>
                   <p style="color:#9ca3af;font-size:14px;line-height:1.6;margin:0 0 24px;">
-                    You requested a password reset for your WeatherWise AI account. Click the button below to set a new password. This link expires in 15 minutes.
+                    You requested a password reset for your TraceSky AI account. Click the button below to set a new password. This link expires in 15 minutes.
                   </p>
                   <a href="{reset_url}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:12px;text-decoration:none;box-shadow:0 4px 15px rgba(59,130,246,0.3);">
                     Reset Password
@@ -68,7 +68,7 @@ def send_password_reset_email(to_email: str, reset_url: str) -> bool:
               </tr>
               <tr>
                 <td style="padding:0 32px 32px;text-align:center;">
-                  <p style="color:#4b5563;font-size:11px;margin:0;">&copy; 2026 WeatherWise Labs Inc. All nodes active.</p>
+                  <p style="color:#4b5563;font-size:11px;margin:0;">&copy; 2026 TraceSky Labs Inc. All nodes active.</p>
                 </td>
               </tr>
             </table>

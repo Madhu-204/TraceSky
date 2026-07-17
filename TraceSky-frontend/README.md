@@ -1,4 +1,4 @@
-# WeatherWise AI
+# TraceSky AI
 
 A modern weather intelligence dashboard built with React, TypeScript, and Vite featuring AI-powered forecasting, risk monitoring, and analytics.
 

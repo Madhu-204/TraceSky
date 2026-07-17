@@ -69,7 +69,7 @@ export const AssistantActionBar: React.FC<AssistantActionBarProps> = ({
       </form>
 
       <div className="text-center text-[9px] font-bold font-mono tracking-wider text-gray-600 uppercase">
-        POWERED BY WEATHERWISE EXPERT SYSTEM — 50+ RULES ANALYZED IN REAL TIME
+        POWERED BY TRACESKY EXPERT SYSTEM — 50+ RULES ANALYZED IN REAL TIME
       </div>
     </div>
   );
