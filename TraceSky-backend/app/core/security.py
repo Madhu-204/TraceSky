@@ -20,7 +20,7 @@ COOKIE_NAME = "tracesky_token"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true" if ENVIRONMENT == "production" else "false").lower() == "true"
 COOKIE_HTTPONLY = True  # Cannot be accessed via JavaScript
-COOKIE_SAMESITE = "lax"  # CSRF protection
+COOKIE_SAMESITE = "none" if ENVIRONMENT == "production" else "lax"
 COOKIE_MAX_AGE = 60 * ACCESS_TOKEN_EXPIRE_MINUTES  # 15 minutes = 900 seconds
 
 # ==================== Password Configuration ====================
