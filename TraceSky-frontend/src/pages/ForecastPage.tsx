@@ -43,7 +43,7 @@ export const ForecastPage: React.FC = () => {
   const recommendations = expertAnalysis?.recommendations ?? [];
   const inferenceMetrics = expertAnalysis?.inference_metrics ?? null;
 
-  const validatedByHour: Record<string, { forecast_temp: number; historical_temp: number; temp_deviation: number; humidity_deviation: number; wind_deviation: number; confidence: number; status: string }> = {};
+  const validatedByHour: Record<string, { forecast_temp: number; historical_temp: number; temp_deviation: number; humidity_deviation: number; wind_deviation: number; confidence: number; status: string; forecast_rate?: number | null; historical_rate?: number | null; rate_deviation?: number | null }> = {};
   if (forecastValidation) {
     for (const vh of forecastValidation.validated_hours) {
       validatedByHour[vh.hour] = vh;
