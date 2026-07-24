@@ -4,8 +4,20 @@ import { useLocationStore } from './locationStore';
 import { useSettingsStore } from './settingsStore';
 
 const API_URL = 'http://localhost:8000/api/v1/auth';
-
+const REFRESH_TOKEN_KEY = 'tracesky_refresh_token';
 const TOKEN_EXPIRY_BUFFER_MS = 60 * 1000; // Refresh 1 minute before expiry
+
+function persistRefreshToken(token: string | null) {
+  if (token) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
+}
+
+function getPersistedRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
 
 interface AuthState {
   user: User | null;
@@ -19,6 +31,7 @@ interface AuthState {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
+  scheduleTokenRefresh: () => void;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   updateProfile: (data: { name: string; location_default?: string; theme_accent?: string }) => Promise<void>;
@@ -36,7 +49,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initAuth: async () => {
     set({ isLoading: true });
     try {
-      // Call /me to verify session with cookie
       const response = await fetch(`${API_URL}/me`, {
         method: 'GET',
         credentials: 'include'
@@ -47,12 +59,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user, isAuthenticated: true, isLoading: false });
         useLocationStore.getState().hydrateFromUser(user);
         useSettingsStore.getState().hydrateTheme(user.theme_accent);
+
+        const storedRefreshToken = getPersistedRefreshToken();
+        if (storedRefreshToken) {
+          set({ refreshToken: storedRefreshToken });
+          get().scheduleTokenRefresh();
+        }
+
         return true;
-      } else {
-        // Not authenticated
-        set({ user: null, isAuthenticated: false, isLoading: false });
-        return false;
       }
+
+      // Access token expired or missing — try refresh with persisted token
+      const storedRefreshToken = getPersistedRefreshToken();
+      if (storedRefreshToken) {
+        set({ refreshToken: storedRefreshToken });
+        const refreshed = await get().refreshAccessToken();
+        if (refreshed) {
+          const retryResponse = await fetch(`${API_URL}/me`, {
+            method: 'GET',
+            credentials: 'include'
+          });
+          if (retryResponse.ok) {
+            const user = await retryResponse.json();
+            set({ user, isAuthenticated: true, isLoading: false });
+            useLocationStore.getState().hydrateFromUser(user);
+            useSettingsStore.getState().hydrateTheme(user.theme_accent);
+            return true;
+          }
+        }
+      }
+
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      return false;
     } catch {
       set({ user: null, isAuthenticated: false, isLoading: false });
       return false;
@@ -77,6 +115,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       useLocationStore.getState().hydrateFromUser(data.user);
       useSettingsStore.getState().hydrateTheme(data.user.theme_accent);
+      persistRefreshToken(data.refresh_token);
       set({
         user: data.user,
         refreshToken: data.refresh_token,
@@ -84,10 +123,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false
       });
 
-      // Schedule token refresh
-      setTimeout(() => {
-        get().refreshAccessToken();
-      }, (data.expires_in * 1000) - TOKEN_EXPIRY_BUFFER_MS);
+      get().scheduleTokenRefresh();
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Login failed', isLoading: false });
     }
@@ -111,6 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       useLocationStore.getState().hydrateFromUser(data.user);
       useSettingsStore.getState().hydrateTheme(data.user.theme_accent);
+      persistRefreshToken(data.refresh_token);
       set({
         user: data.user,
         refreshToken: data.refresh_token,
@@ -140,6 +177,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       useLocationStore.getState().hydrateFromUser(data.user);
       useSettingsStore.getState().hydrateTheme(data.user.theme_accent);
+      persistRefreshToken(data.refresh_token);
       set({
         user: data.user,
         refreshToken: data.refresh_token,
@@ -147,11 +185,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false
       });
 
-      if (data.expires_in) {
-        setTimeout(() => {
-          get().refreshAccessToken();
-        }, (data.expires_in * 1000) - TOKEN_EXPIRY_BUFFER_MS);
-      }
+      get().scheduleTokenRefresh();
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Google Sign In failed', isLoading: false });
     }
@@ -166,14 +200,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       // Ignore logout errors
     }
+    persistRefreshToken(null);
     set({ user: null, refreshToken: null, isAuthenticated: false });
   },
 
+  scheduleTokenRefresh: () => {
+    setTimeout(() => {
+      get().refreshAccessToken();
+    }, (15 * 60 * 1000) - TOKEN_EXPIRY_BUFFER_MS);
+  },
+
   refreshAccessToken: async () => {
-    const { refreshToken } = get();
+    let { refreshToken } = get();
     if (!refreshToken) {
-      set({ isAuthenticated: false, refreshToken: null });
-      return false;
+      refreshToken = getPersistedRefreshToken();
+      if (!refreshToken) {
+        persistRefreshToken(null);
+        set({ isAuthenticated: false, user: null, refreshToken: null });
+        return false;
+      }
+      set({ refreshToken });
     }
 
     try {
@@ -187,19 +233,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const data = await response.json();
 
       if (!response.ok) {
-        // Refresh failed - force logout
+        persistRefreshToken(null);
         set({ isAuthenticated: false, refreshToken: null, user: null });
         return false;
       }
 
-      // Schedule next refresh
-      setTimeout(() => {
-        get().refreshAccessToken();
-      }, (data.expires_in * 1000) - TOKEN_EXPIRY_BUFFER_MS);
+      // Store the new refresh token (token rotation)
+      persistRefreshToken(data.refresh_token);
+      set({ refreshToken: data.refresh_token });
+
+      get().scheduleTokenRefresh();
 
       return true;
     } catch {
-      set({ isAuthenticated: false, refreshToken: null });
+      persistRefreshToken(null);
+      set({ isAuthenticated: false, refreshToken: null, user: null });
       return false;
     }
   },

@@ -261,14 +261,42 @@ def build_expert_report(
                 },
             })
 
-            # Build recommendations from action map
-            if fact_name in ACTION_MAP:
-                value_str = str(best.value)
-                if value_str in ACTION_MAP[fact_name]:
-                    for action_text in ACTION_MAP[fact_name][value_str]:
-                        recommendations.append(
-                            _build_recommendation(action_text, fired_traces[0].rule_id if fired_traces else "N/A", best.certainty)
-                        )
+    # Determine highest severity across all detected risks
+    highest_severity = "NONE"
+    for r in risks:
+        s = r["severity"].upper()
+        if {"LOW": 0, "MODERATE": 1, "HIGH": 2, "EXTREME": 3}.get(s, -1) > {"LOW": 0, "MODERATE": 1, "HIGH": 2, "EXTREME": 3}.get(highest_severity, -1):
+            highest_severity = s
+    has_critical_risk = highest_severity in ("HIGH", "EXTREME")
+
+    # Build recommendations from action map
+    for domain_key, (fact_name, high_name, risk_id) in risk_domains.items():
+        risk_facts = inference_result.derived_facts.get(fact_name, [])
+        if not risk_facts:
+            continue
+        best = max(
+            risk_facts,
+            key=lambda f: {"LOW": 0, "MODERATE": 1, "HIGH": 2, "EXTREME": 3}.get(
+                str(f.value), -1
+            ),
+        )
+        value_str = str(best.value).upper()
+
+        # Skip LOW-severity recommendations when a critical risk is active
+        if has_critical_risk and value_str == "LOW":
+            continue
+
+        fired_traces = [
+            t
+            for t in inference_result.fired_rules
+            if t.domain == domain_key
+        ]
+
+        if fact_name in ACTION_MAP and value_str in ACTION_MAP[fact_name]:
+            for action_text in ACTION_MAP[fact_name][value_str]:
+                recommendations.append(
+                    _build_recommendation(action_text, fired_traces[0].rule_id if fired_traces else "N/A", best.certainty)
+                )
 
     # Build farm suggestions
     farm_maps = [
@@ -303,8 +331,8 @@ def build_expert_report(
             if val_str in action_map:
                 solar_suggestions.extend(action_map[val_str])
 
-    # Build forecast validation recommendations
-    if forecast_validation:
+    # Build forecast validation recommendations (skip when critical risks are active)
+    if forecast_validation and not has_critical_risk:
         fv_status = forecast_validation.get("overall_status", "NONE")
         if fv_status in FORECAST_ACTION_MAP:
             for action_text in FORECAST_ACTION_MAP[fv_status]:
