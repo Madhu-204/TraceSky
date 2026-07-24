@@ -3,7 +3,7 @@ import type { User } from '../types/auth.types';
 import { useLocationStore } from './locationStore';
 import { useSettingsStore } from './settingsStore';
 
-const API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/v1/auth`;
+const API_URL = `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/auth`;
 const REFRESH_TOKEN_KEY = 'tracesky_refresh_token';
 const TOKEN_EXPIRY_BUFFER_MS = 60 * 1000; // Refresh 1 minute before expiry
 
