@@ -65,9 +65,9 @@ export const ForecastPage: React.FC = () => {
       tempDeviation: val?.temp_deviation,
       humidityDeviation: val?.humidity_deviation,
       windDeviation: val?.wind_deviation,
-      forecastRate: val?.forecast_rate,
-      historicalRate: val?.historical_rate,
-      rateDeviation: val?.rate_deviation,
+      forecastRate: val?.forecast_rate ?? undefined,
+      historicalRate: val?.historical_rate ?? undefined,
+      rateDeviation: val?.rate_deviation ?? undefined,
     };
   });
 
