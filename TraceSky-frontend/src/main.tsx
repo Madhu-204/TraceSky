@@ -11,7 +11,7 @@ console.log('main.tsx: Starting app...')
 try {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <GoogleOAuthProvider clientId={googleClientId}>
+      <GoogleOAuthProvider clientId={googleClientId || 'none'}>
         <App />
       </GoogleOAuthProvider>
     </StrictMode>,
