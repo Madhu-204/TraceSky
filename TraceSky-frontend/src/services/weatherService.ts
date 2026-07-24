@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000/api/v1/weather';
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/v1/weather`;
 
 export interface CurrentWeather {
   temperature: number;
