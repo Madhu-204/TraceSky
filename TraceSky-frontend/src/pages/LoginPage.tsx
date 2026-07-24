@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../store/authStore';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { WeatherIcon } from '../components/ui/WeatherIcon';
-import { FcGoogle } from 'react-icons/fc';
+import { GoogleSignInButton } from '../components/ui/GoogleSignInButton';
 import { Toast } from '../components/ui/Toast';
 
 interface LoginPageProps {
@@ -12,19 +11,12 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNavigateToForgotPassword }) => {
-  const { login, googleSignIn, isLoading, error, clearError } = useAuthStore();
+  const { login, isLoading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-
-  const handleGoogleLogin = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
-      googleSignIn(tokenResponse.access_token);
-    },
-    flow: 'implicit'
-  });
 
   useEffect(() => {
     clearError();
@@ -181,16 +173,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNa
                 </div>
               </div>
 
-              {/* Google Sign In Button */}
-              <button
-                type="button"
-                disabled={isLoading}
-                onClick={() => handleGoogleLogin()}
-                className="w-full bg-[#1C2345] hover:bg-[#252d4a] disabled:bg-[#1C2345] disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-3 border border-gray-700"
-              >
-                <FcGoogle size={20} />
-                Sign in with Google
-              </button>
+              <GoogleSignInButton />
             </form>
 
           </div>
