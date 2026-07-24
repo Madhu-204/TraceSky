@@ -61,7 +61,7 @@ def map_confidence(precipitation_probability: float) -> str:
 class WeatherService:
 
     def __init__(self):
-        self.client = httpx.AsyncClient(timeout=15.0)
+        self.client = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
 
     async def close(self):
         await self.client.aclose()
