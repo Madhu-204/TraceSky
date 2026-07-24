@@ -131,7 +131,7 @@ class AIService:
             facts.append(Fact(name="sunny_hours_today", value=sunny_hours_today, certainty=0.85, source="derived"))
             facts.append(Fact(name="sunny_hours_48h", value=sunny_hours_48h, certainty=0.85, source="derived"))
 
-        historical_hourly = forecast.get("historical_hourly", [])
+        historical_hourly = (forecast or {}).get("historical_hourly", [])
         if historical_hourly:
             hist_temps = [h.get("temperature", 0) or 0 for h in historical_hourly]
             hist_winds = [h.get("wind_speed", 0) or 0 for h in historical_hourly]
