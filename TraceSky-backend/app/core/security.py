@@ -17,7 +17,8 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 days - for rotation
 
 # ==================== Cookie Configuration ====================
 COOKIE_NAME = "tracesky_token"
-COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"  # HTTPS only in production
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true" if ENVIRONMENT == "production" else "false").lower() == "true"
 COOKIE_HTTPONLY = True  # Cannot be accessed via JavaScript
 COOKIE_SAMESITE = "lax"  # CSRF protection
 COOKIE_MAX_AGE = 60 * ACCESS_TOKEN_EXPIRE_MINUTES  # 15 minutes = 900 seconds
@@ -30,15 +31,18 @@ PASSWORD_REGEX = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ==================== CORS Configuration ====================
+_frontend_url = os.getenv("FRONTEND_URL", "")
 CORS_ORIGINS = [
-    "http://localhost:5173",  # Vite dev server
-    "http://localhost:3000",  # Common React dev server
+    "http://localhost:5173",
+    "http://localhost:3000",
 ]
+if _frontend_url:
+    CORS_ORIGINS.append(_frontend_url)
 
 # ==================== Google OAuth Configuration ====================
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173/auth/callback")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", f"{_frontend_url}/auth/callback" if _frontend_url else "http://localhost:5173/auth/callback")
 
 # ==================== Helper Functions ====================
 

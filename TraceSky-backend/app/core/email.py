@@ -13,9 +13,14 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "")
 SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "TraceSky AI")
 
+SMTP_ENABLED = bool(SMTP_USERNAME and SMTP_PASSWORD)
+
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
-    """Send an email via SMTP."""
+    """Send an email via SMTP. Returns True if sent or if SMTP is not configured."""
+    if not SMTP_ENABLED:
+        print(f"SMTP not configured — skipping email to {to_email} (subject: {subject})")
+        return True
     try:
         msg = MIMEMultipart("alternative")
         msg["From"] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
