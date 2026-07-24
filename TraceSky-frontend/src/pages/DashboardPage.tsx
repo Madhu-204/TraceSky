@@ -60,7 +60,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateToForeca
         cityName={cityName}
         current={current}
         hourly={forecast?.hourly ?? []}
-        dataSource={hasExpert ? expertAnalysis?.data_source : null}
+        dataSource={hasExpert ? expertAnalysis?.data_source : undefined}
         isLoading={isLoading || isExpertLoading}
         forecastValidation={forecastValidation}
       />

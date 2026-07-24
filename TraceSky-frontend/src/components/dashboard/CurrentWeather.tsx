@@ -38,7 +38,7 @@ export const CurrentWeather: React.FC<CurrentWeatherProps> = ({ data }) => {
             </div>
             <div className="flex items-center gap-2 bg-slate-900/40 px-3 py-1.5 rounded-lg border border-gray-800/30">
               <Wind size={14} className="text-cyan-400" />
-              <span>Wind: <strong className="text-white font-semibold">{wind(data.windSpeed).value}{wind(data.windSpeed).unit}</strong></span>
+              <span>Wind: <strong className="text-white font-semibold">{wind(Number(data.windSpeed)).value}{wind(Number(data.windSpeed)).unit}</strong></span>
             </div>
             <div className="flex items-center gap-2 bg-slate-900/40 px-3 py-1.5 rounded-lg border border-gray-800/30">
               <Sun size={14} className="text-amber-400" />
