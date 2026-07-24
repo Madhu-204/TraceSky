@@ -1,4 +1,7 @@
-import httpx
+import os
+import asyncio
+import random
+import urllib.error
 from typing import Optional
 from datetime import date, datetime, timedelta
 
@@ -6,6 +9,8 @@ from app.cache import get_cache, set_cache
 
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+
+USER_AGENT = f"TraceSky/1.0 (contact: {os.getenv('SMTP_FROM_EMAIL', 'tracesky@app')})"
 
 WMO_CODES: dict[int, str] = {
     0: "Clear Sky", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
@@ -70,15 +75,28 @@ class WeatherService:
         import urllib.request
         import urllib.parse
         import json
-        try:
-            query = urllib.parse.urlencode(params)
-            full_url = f"{url}?{query}"
-            req = urllib.request.Request(full_url, headers={"User-Agent": "TraceSky/1.0"})
-            with urllib.request.urlopen(req, timeout=25) as resp:
-                return json.loads(resp.read().decode())
-        except Exception as e:
-            print(f"Weather fetch error: {e}")
-            return None
+
+        await asyncio.sleep(random.uniform(0.3, 1.0))
+
+        for attempt in range(3):
+            try:
+                query = urllib.parse.urlencode(params)
+                full_url = f"{url}?{query}"
+                req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(req, timeout=25) as resp:
+                    return json.loads(resp.read().decode())
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt < 2:
+                    wait = (attempt + 1) * random.uniform(1, 3)
+                    print(f"Rate limited, retrying in {wait:.1f}s...")
+                    await asyncio.sleep(wait)
+                else:
+                    print(f"Weather fetch error: {e}")
+                    return None
+            except Exception as e:
+                print(f"Weather fetch error: {e}")
+                return None
+        return None
 
     async def get_current_weather(self, lat: float, lon: float) -> Optional[dict]:
         cache_key = f"weather:current:{lat:.2f}:{lon:.2f}"
