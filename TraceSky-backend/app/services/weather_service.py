@@ -63,6 +63,9 @@ def map_confidence(precipitation_probability: float) -> str:
     return "LOW"
 
 
+_open_meteo_lock = asyncio.Lock()
+
+
 class WeatherService:
 
     def __init__(self):
@@ -76,26 +79,25 @@ class WeatherService:
         import urllib.parse
         import json
 
-        await asyncio.sleep(random.uniform(0.3, 1.0))
-
-        for attempt in range(3):
-            try:
-                query = urllib.parse.urlencode(params)
-                full_url = f"{url}?{query}"
-                req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
-                with urllib.request.urlopen(req, timeout=25) as resp:
-                    return json.loads(resp.read().decode())
-            except urllib.error.HTTPError as e:
-                if e.code == 429 and attempt < 2:
-                    wait = (attempt + 1) * random.uniform(1, 3)
-                    print(f"Rate limited, retrying in {wait:.1f}s...")
-                    await asyncio.sleep(wait)
-                else:
+        async with _open_meteo_lock:
+            for attempt in range(3):
+                try:
+                    query = urllib.parse.urlencode(params)
+                    full_url = f"{url}?{query}"
+                    req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
+                    with urllib.request.urlopen(req, timeout=25) as resp:
+                        return json.loads(resp.read().decode())
+                except urllib.error.HTTPError as e:
+                    if e.code == 429 and attempt < 2:
+                        wait = (attempt + 1) * random.uniform(1, 3)
+                        print(f"Rate limited, retrying in {wait:.1f}s...")
+                        await asyncio.sleep(wait)
+                    else:
+                        print(f"Weather fetch error: {e}")
+                        return None
+                except Exception as e:
                     print(f"Weather fetch error: {e}")
                     return None
-            except Exception as e:
-                print(f"Weather fetch error: {e}")
-                return None
         return None
 
     async def get_current_weather(self, lat: float, lon: float) -> Optional[dict]:
