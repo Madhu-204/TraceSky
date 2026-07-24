@@ -3,6 +3,7 @@ export interface SensorFact {
   value: number | string;
   certainty: number;
   source: 'sensor' | 'derived' | 'inferred';
+  fired_rule_id?: string;
 }
 
 export interface ConditionEvaluation {
