@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import date, datetime, timedelta
 
 from app.cache import get_cache, set_cache, delete_cache
-from app.services.weather_service import WeatherService
+from app.services.weather_service import WeatherService, record_bias
 from app.services.intent_engine import IntentEngine, IntentResult
 from app.services.context_service import context_service
 from app.services.inference_engine import InferenceEngine, Fact
@@ -221,9 +221,13 @@ class AIService:
             if first_valid_hour is None:
                 first_valid_hour = hour
 
-            temp_dev = abs(f_temp - h_temp)
+            signed_dev = f_temp - h_temp
+            temp_dev = abs(signed_dev)
             hum_dev = abs(f_hum - h_hum)
             wind_dev = abs(f_wind - h_wind)
+
+            if lat and lon:
+                record_bias(lat, lon, hour, signed_dev)
 
             temp_conf = max(0.0, 1.0 - temp_dev / 10.0)
             hum_conf = max(0.0, 1.0 - hum_dev / 50.0)
