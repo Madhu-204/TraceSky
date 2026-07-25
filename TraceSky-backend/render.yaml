@@ -17,7 +17,7 @@ services:
       - key: FRONTEND_URL
         value: https://trace-sky.vercel.app
       - key: JWT_SECRET_KEY
-        generateValue: true
+        value: weatherwise-secret-key-change-in-production
       - key: COOKIE_SECURE
         value: "true"
       - key: REDIS_URL
