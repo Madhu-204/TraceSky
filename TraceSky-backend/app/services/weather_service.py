@@ -1,6 +1,7 @@
 import os
 import asyncio
 import random
+import time as _time
 import urllib.error
 from typing import Optional
 from datetime import date, datetime, timedelta
@@ -65,10 +66,11 @@ def map_confidence(precipitation_probability: float) -> str:
 
 _pending_fetches: dict[str, asyncio.Event] = {}
 _pending_lock = asyncio.Lock()
+_last_api_call: float = 0.0
+_api_call_lock = asyncio.Lock()
 
 
 async def _wait_or_register_fetch(cache_key: str) -> bool:
-    """Returns True if caller should proceed with fetching, False if another caller is already fetching."""
     async with _pending_lock:
         if cache_key in _pending_fetches:
             event = _pending_fetches[cache_key]
@@ -86,6 +88,22 @@ async def _mark_fetch_done(cache_key: str) -> None:
             event.set()
 
 
+def _extract_current(raw: dict) -> dict:
+    current = raw.get("current", {})
+    return {
+        "temperature": current.get("temperature_2m"),
+        "feels_like": current.get("apparent_temperature"),
+        "humidity": current.get("relative_humidity_2m"),
+        "wind_speed": current.get("wind_speed_10m"),
+        "wind_direction": current.get("wind_direction_10m"),
+        "uv_index": current.get("uv_index"),
+        "precipitation": current.get("precipitation"),
+        "condition": map_weather_code(current.get("weather_code", 0)),
+        "icon": map_weather_icon(current.get("weather_code", 0)),
+        "weather_code": current.get("weather_code"),
+    }
+
+
 class WeatherService:
 
     def __init__(self):
@@ -94,33 +112,34 @@ class WeatherService:
     async def close(self):
         pass
 
+    async def _rate_limit(self) -> None:
+        global _last_api_call
+        async with _api_call_lock:
+            now = _time.monotonic()
+            since_last = now - _last_api_call
+            if since_last < 1.0:
+                await asyncio.sleep(1.0 - since_last)
+            _last_api_call = _time.monotonic()
+
     async def _fetch(self, url: str, params: dict) -> dict | None:
         import urllib.request
         import urllib.parse
         import json
 
-        max_attempts = 3
-        base_wait = 1.0
+        await self._rate_limit()
 
-        for attempt in range(max_attempts):
-            try:
-                query = urllib.parse.urlencode(params)
-                full_url = f"{url}?{query}"
-                req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    return json.loads(resp.read().decode())
-            except urllib.error.HTTPError as e:
-                if e.code == 429 and attempt < max_attempts - 1:
-                    wait = min(base_wait * (2 ** attempt) + random.uniform(0, 1), 10)
-                    print(f"Rate limited, retrying in {wait:.1f}s... (attempt {attempt + 1}/{max_attempts})")
-                    await asyncio.sleep(wait)
-                else:
-                    print(f"Weather fetch error: {e}")
-                    return None
-            except Exception as e:
-                print(f"Weather fetch error: {e}")
-                return None
-        return None
+        try:
+            query = urllib.parse.urlencode(params)
+            full_url = f"{url}?{query}"
+            req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            print(f"Weather fetch error ({e.code}): {e}")
+            return None
+        except Exception as e:
+            print(f"Weather fetch error: {e}")
+            return None
 
     async def _get_or_fetch(self, cache_key: str, url: str, params: dict, cache_expire: int,
                             post_process=None) -> Optional[dict]:
@@ -136,8 +155,6 @@ class WeatherService:
             cached_after = get_cache(cache_key)
             if cached_after is not None:
                 return cached_after
-
-            await asyncio.sleep(random.uniform(0, 0.5))
 
             data = await self._fetch(url, params)
             if data:
@@ -158,26 +175,34 @@ class WeatherService:
     async def get_current_weather(self, lat: float, lon: float) -> Optional[dict]:
         cache_key = f"weather:current:{lat:.2f}:{lon:.2f}"
 
-        def _build(data):
-            current = data.get("current", {})
-            return {
-                "temperature": current.get("temperature_2m"),
-                "feels_like": current.get("apparent_temperature"),
-                "humidity": current.get("relative_humidity_2m"),
-                "wind_speed": current.get("wind_speed_10m"),
-                "wind_direction": current.get("wind_direction_10m"),
+        cached = get_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        forecast_key = f"weather:forecast:{lat:.2f}:{lon:.2f}:7:past=True"
+        forecast = get_cache(forecast_key) or get_cache_stale(forecast_key)
+        if forecast and forecast.get("current"):
+            current = forecast["current"]
+            result = {
+                "temperature": current.get("temperature"),
+                "feels_like": current.get("feels_like"),
+                "humidity": current.get("humidity"),
+                "wind_speed": current.get("wind_speed"),
+                "wind_direction": current.get("wind_direction"),
                 "uv_index": current.get("uv_index"),
                 "precipitation": current.get("precipitation"),
-                "condition": map_weather_code(current.get("weather_code", 0)),
-                "icon": map_weather_icon(current.get("weather_code", 0)),
+                "condition": current.get("condition"),
+                "icon": current.get("icon"),
                 "weather_code": current.get("weather_code"),
             }
+            set_cache(cache_key, result, expire=300)
+            return result
 
         return await self._get_or_fetch(
             cache_key, OPEN_METEO_FORECAST_URL,
             {"latitude": str(lat), "longitude": str(lon),
              "current": CURRENT_PARAMS, "timezone": "auto"},
-            cache_expire=300, post_process=_build,
+            cache_expire=300, post_process=_extract_current,
         )
 
     async def get_forecast(self, lat: float, lon: float, days: int = 7, include_past: bool = True) -> Optional[dict]:
@@ -194,12 +219,9 @@ class WeatherService:
         if include_past:
             params["past_days"] = "1"
 
-        def _build(raw):
-            return self._build_forecast_response(raw)
-
         return await self._get_or_fetch(
             cache_key, OPEN_METEO_FORECAST_URL, params,
-            cache_expire=1800, post_process=_build,
+            cache_expire=1800, post_process=self._build_forecast_response,
         )
 
     async def get_historical_hourly(self, lat: float, lon: float) -> Optional[list[dict]]:
@@ -266,6 +288,7 @@ class WeatherService:
             "precipitation": current.get("precipitation"),
             "condition": map_weather_code(current.get("weather_code", 0)),
             "icon": map_weather_icon(current.get("weather_code", 0)),
+            "weather_code": current.get("weather_code"),
         }
 
         hourly_rows = []
