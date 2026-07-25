@@ -1,9 +1,12 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
 from app.routers import auth, weather, ai
 from app.core.security import CORS_ORIGINS
+from app.services.weather_service import warm_cache
 
 # Create FastAPI app
 app = FastAPI(
@@ -23,8 +26,9 @@ app.add_middleware(
 
 # Initialize database on startup
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     init_db()
+    asyncio.create_task(warm_cache())
 
 
 # Include routers
