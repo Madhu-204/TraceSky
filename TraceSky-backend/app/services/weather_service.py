@@ -5,7 +5,7 @@ import urllib.error
 from typing import Optional
 from datetime import date, datetime, timedelta
 
-from app.cache import get_cache, set_cache
+from app.cache import get_cache, get_cache_stale, set_cache
 
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -63,7 +63,6 @@ def map_confidence(precipitation_probability: float) -> str:
     return "LOW"
 
 
-_http_lock = asyncio.Lock()
 _pending_fetches: dict[str, asyncio.Event] = {}
 _pending_lock = asyncio.Lock()
 
@@ -100,28 +99,27 @@ class WeatherService:
         import urllib.parse
         import json
 
-        max_attempts = 5
-        base_wait = 2.0
+        max_attempts = 3
+        base_wait = 1.0
 
-        async with _http_lock:
-            for attempt in range(max_attempts):
-                try:
-                    query = urllib.parse.urlencode(params)
-                    full_url = f"{url}?{query}"
-                    req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
-                    with urllib.request.urlopen(req, timeout=25) as resp:
-                        return json.loads(resp.read().decode())
-                except urllib.error.HTTPError as e:
-                    if e.code == 429 and attempt < max_attempts - 1:
-                        wait = base_wait * (2 ** attempt) + random.uniform(0, 2)
-                        print(f"Rate limited, retrying in {wait:.1f}s... (attempt {attempt + 1}/{max_attempts})")
-                        await asyncio.sleep(wait)
-                    else:
-                        print(f"Weather fetch error: {e}")
-                        return None
-                except Exception as e:
+        for attempt in range(max_attempts):
+            try:
+                query = urllib.parse.urlencode(params)
+                full_url = f"{url}?{query}"
+                req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    return json.loads(resp.read().decode())
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt < max_attempts - 1:
+                    wait = min(base_wait * (2 ** attempt) + random.uniform(0, 1), 10)
+                    print(f"Rate limited, retrying in {wait:.1f}s... (attempt {attempt + 1}/{max_attempts})")
+                    await asyncio.sleep(wait)
+                else:
                     print(f"Weather fetch error: {e}")
                     return None
+            except Exception as e:
+                print(f"Weather fetch error: {e}")
+                return None
         return None
 
     async def _get_or_fetch(self, cache_key: str, url: str, params: dict, cache_expire: int,
@@ -132,20 +130,28 @@ class WeatherService:
 
         should_fetch = await _wait_or_register_fetch(cache_key)
         if not should_fetch:
-            return get_cache(cache_key)
+            return get_cache(cache_key) or get_cache_stale(cache_key)
 
         try:
             cached_after = get_cache(cache_key)
             if cached_after is not None:
                 return cached_after
 
-            data = await self._fetch(url, params)
-            if not data:
-                return None
+            await asyncio.sleep(random.uniform(0, 0.5))
 
-            result = post_process(data) if post_process else data
-            set_cache(cache_key, result, expire=cache_expire)
-            return result
+            data = await self._fetch(url, params)
+            if data:
+                result = post_process(data) if post_process else data
+                set_cache(cache_key, result, expire=cache_expire)
+                return result
+
+            stale = get_cache_stale(cache_key)
+            if stale is not None:
+                print(f"Serving stale cache for {cache_key}")
+                set_cache(cache_key, stale, expire=60)
+                return stale
+
+            return None
         finally:
             await _mark_fetch_done(cache_key)
 

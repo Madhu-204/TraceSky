@@ -45,7 +45,21 @@ def get_cache(key: str) -> Optional[Any]:
             val, expiry = _in_memory_cache[key]
             if expiry > time.time():
                 return val
-            del _in_memory_cache[key]
+    return None
+
+
+def get_cache_stale(key: str) -> Optional[Any]:
+    if _get_redis_client() and _redis_available:
+        try:
+            value = _redis_client.get(key)
+            if value:
+                return json.loads(value)
+            return None
+        except Exception as e:
+            print(f"Redis get stale error, falling back to memory: {e}")
+    with _in_memory_lock:
+        if key in _in_memory_cache:
+            return _in_memory_cache[key][0]
     return None
 
 
