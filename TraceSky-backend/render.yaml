@@ -15,7 +15,7 @@ services:
           name: tracesky-db
           property: connectionString
       - key: FRONTEND_URL
-        value: https://tracesky.vercel.app
+        value: https://trace-sky.vercel.app
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: COOKIE_SECURE
