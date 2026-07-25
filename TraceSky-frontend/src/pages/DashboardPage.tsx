@@ -16,7 +16,7 @@ interface DashboardPageProps {
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateToForecast, onNavigateToAssistant }) => {
-  const { current, forecast, isLoading, fetchCurrent, fetchForecast } = useWeatherStore();
+  const { forecast, isLoading, fetchForecast } = useWeatherStore();
   const {
     expertAnalysis, isExpertLoading,
     fetchExpertAnalysis,
@@ -36,12 +36,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateToForeca
   const hasExpert = canAccess('expert-analysis');
 
   const refresh = useCallback(() => {
-    fetchCurrent(lat, lon);
     fetchForecast(lat, lon, 7);
     if (hasExpert) {
       fetchExpertAnalysis(lat, lon);
     }
-  }, [lat, lon, fetchCurrent, fetchForecast, fetchExpertAnalysis, hasExpert]);
+  }, [lat, lon, fetchForecast, fetchExpertAnalysis, hasExpert]);
 
   useEffect(() => {
     refresh();
@@ -58,7 +57,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateToForeca
     <div className="pt-4 sm:pt-6 lg:pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all">
       <CurrentConditions
         cityName={cityName}
-        current={current}
+        current={forecast?.current ?? null}
         hourly={forecast?.hourly ?? []}
         dataSource={hasExpert ? expertAnalysis?.data_source : undefined}
         isLoading={isLoading || isExpertLoading}
