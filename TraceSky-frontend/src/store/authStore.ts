@@ -24,6 +24,7 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  profileLoading: boolean;
   error: string | null;
   initAuth: () => Promise<boolean>;
   login: (email: string, password: string) => Promise<void>;
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshToken: null,
   isAuthenticated: false,
   isLoading: false,
+  profileLoading: false,
   error: null,
 
   initAuth: async () => {
@@ -297,7 +299,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   updateProfile: async (data) => {
-    set({ isLoading: true, error: null });
+    set({ profileLoading: true, error: null });
     try {
       const response = await fetch(`${API_URL}/profile`, {
         method: 'PUT',
@@ -316,9 +318,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error(result.detail || 'Failed to update profile');
       }
 
-      set({ user: result, isLoading: false });
+      set({ user: result, profileLoading: false });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to update profile', isLoading: false });
+      set({ error: err instanceof Error ? err.message : 'Failed to update profile', profileLoading: false });
       throw err;
     }
   },
