@@ -80,11 +80,13 @@ async def _wait_or_register_fetch(cache_key: str) -> bool:
     async with _pending_lock:
         if cache_key in _pending_fetches:
             event = _pending_fetches[cache_key]
-            await event.wait()
-            return False
-        event = asyncio.Event()
-        _pending_fetches[cache_key] = event
-        return True
+        else:
+            event = asyncio.Event()
+            _pending_fetches[cache_key] = event
+            return True
+
+    await event.wait()
+    return False
 
 
 async def _mark_fetch_done(cache_key: str) -> None:
