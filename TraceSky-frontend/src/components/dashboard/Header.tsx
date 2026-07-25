@@ -51,7 +51,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActi
 
       {/* Mobile Navigation Dropdown */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed top-14 left-0 right-0 bg-[#0A0D1A] border-b border-[#161B33] z-25">
+        <>
+          <div className="lg:hidden fixed inset-x-0 top-14 bottom-0 bg-black/40 z-20" onClick={() => setMobileMenuOpen(false)} />
+          <div className="lg:hidden fixed top-14 left-0 right-0 bg-[#0A0D1A] border-b border-[#161B33] z-25 shadow-xl">
           <nav className="flex overflow-x-auto py-2 px-2 gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -72,7 +74,20 @@ export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActi
               );
             })}
           </nav>
+          <div className="border-t border-[#161B33] px-3 py-2">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                logout();
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-950/10 w-full transition-all"
+            >
+              <LogOut size={14} />
+              Logout
+            </button>
+          </div>
         </div>
+      </>
       )}
 
       {/* Desktop Header */}

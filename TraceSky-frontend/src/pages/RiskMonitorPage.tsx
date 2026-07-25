@@ -74,7 +74,7 @@ export const RiskMonitorPage: React.FC = () => {
 
   if (isRiskMonitorLoading && !riskMonitorReport) {
     return (
-      <div className="pt-20 pb-6 px-4 sm:px-6 lg:px-8 space-y-5 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all flex flex-col items-center justify-center">
+      <div className="pt-4 sm:pt-6 lg:pt-20 pb-6 px-4 sm:px-6 lg:px-8 space-y-5 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all flex flex-col items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
           <p className="text-gray-500 text-sm">Running inference engine...</p>
@@ -85,14 +85,14 @@ export const RiskMonitorPage: React.FC = () => {
 
   if (riskMonitorError) {
     return (
-      <div className="pt-20 pb-6 px-4 sm:px-6 lg:px-8 space-y-5 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all flex flex-col items-center justify-center">
+      <div className="pt-4 sm:pt-6 lg:pt-20 pb-6 px-4 sm:px-6 lg:px-8 space-y-5 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all flex flex-col items-center justify-center">
         <p className="text-red-400 text-sm">{riskMonitorError}</p>
       </div>
     );
   }
 
   return (
-    <div className="pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all">
+    <div className="pt-4 sm:pt-6 lg:pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all">
 
       <div className="flex items-center justify-between">
         <div>

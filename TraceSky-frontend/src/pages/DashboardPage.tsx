@@ -55,7 +55,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateToForeca
   const forecastValidation = hasExpert ? (expertAnalysis?.forecast_validation ?? null) : null;
 
   return (
-    <div className="pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all">
+    <div className="pt-4 sm:pt-6 lg:pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all">
       <CurrentConditions
         cityName={cityName}
         current={current}

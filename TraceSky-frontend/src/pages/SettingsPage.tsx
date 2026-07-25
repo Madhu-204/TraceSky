@@ -20,7 +20,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all flex flex-col justify-between">
+    <div className="pt-4 sm:pt-6 lg:pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all flex flex-col justify-between">
 
       <form onSubmit={handleSave} className="space-y-6 flex-1">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-[#1C2345] pb-5">
