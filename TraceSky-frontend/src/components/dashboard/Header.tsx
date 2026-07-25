@@ -1,8 +1,10 @@
 import React from 'react';
-import { Search, Bell, Clock, LogOut, LayoutDashboard, CloudSun, ShieldAlert, Bot, BarChart3, Settings, Menu, X } from 'lucide-react';
+import { Search, Bell, Clock, LogOut, LayoutDashboard, CloudSun, ShieldAlert, Bot, BarChart3, Settings, Menu, X, MapPin } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useLocationStore } from '../../store/locationStore';
 import { WeatherIcon } from '../../components/ui/WeatherIcon';
 import { LocationPicker } from '../../components/ui/LocationPicker';
+import { LocationSearchModal } from '../../components/ui/LocationSearchModal';
 
 interface HeaderProps {
   activeTab?: string;
@@ -12,7 +14,15 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActiveTab }) => {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
+  const currentLocation = useLocationStore((s) => s.currentLocation);
+  const setCurrentLocation = useLocationStore((s) => s.setCurrentLocation);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [modalOpen, setModalOpen] = React.useState(false);
+
+  const currentCity = currentLocation?.city;
+  const cityLabel = currentCity
+    ? `${currentCity.name}${currentCity.state ? `, ${currentCity.state}` : ''}`
+    : 'Select location';
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -54,6 +64,18 @@ export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActi
         <>
           <div className="lg:hidden fixed inset-x-0 top-14 bottom-0 bg-black/40 z-20" onClick={() => setMobileMenuOpen(false)} />
           <div className="lg:hidden fixed top-14 left-0 right-0 bg-[#0A0D1A] border-b border-[#161B33] z-25 shadow-xl">
+          <div className="px-3 py-2.5 border-b border-[#161B33]">
+            <button
+              onClick={() => {
+                setModalOpen(true);
+                setMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-2 w-full text-left"
+            >
+              <MapPin size={14} className="text-blue-400 shrink-0" />
+              <span className="text-xs font-medium text-white truncate">{cityLabel}</span>
+            </button>
+          </div>
           <nav className="flex overflow-x-auto py-2 px-2 gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -89,6 +111,14 @@ export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActi
         </div>
       </>
       )}
+
+      <LocationSearchModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSelect={(city) => {
+          setCurrentLocation({ city, lastUpdated: new Date().toISOString() });
+        }}
+      />
 
       {/* Desktop Header */}
       <header className="hidden lg:flex fixed top-0 right-0 left-0 lg:left-64 h-16 bg-[#070A14]/80 backdrop-blur-md border-b border-[#161B33] items-center justify-between px-4 sm:px-8 z-20">
