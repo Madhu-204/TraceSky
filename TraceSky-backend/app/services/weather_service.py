@@ -1,6 +1,5 @@
 import os
 import asyncio
-import time as _time
 from typing import Optional
 from datetime import date, datetime, timedelta
 
@@ -13,9 +12,6 @@ WEATHERAPI_KEY = os.getenv("WEATHERAPI_KEY", "")
 
 _pending_fetches: dict[str, asyncio.Event] = {}
 _pending_lock = asyncio.Lock()
-_last_api_call: float = 0.0
-_api_call_lock = asyncio.Lock()
-
 CONDITION_TO_ICON: dict[int, str] = {
     1000: "sunny", 1003: "cloudy", 1006: "cloudy", 1009: "overcast",
     1030: "fog", 1063: "rain", 1066: "snow", 1069: "sleet",
@@ -106,22 +102,12 @@ class WeatherService:
     async def close(self):
         await self._client.aclose()
 
-    async def _rate_limit(self) -> None:
-        global _last_api_call
-        async with _api_call_lock:
-            now = _time.monotonic()
-            since_last = now - _last_api_call
-            if since_last < 0.6:
-                await asyncio.sleep(0.6 - since_last)
-            _last_api_call = _time.monotonic()
-
     async def _fetch(self, endpoint: str, params: dict) -> dict | None:
         if not WEATHERAPI_KEY:
             print("WEATHERAPI_KEY not configured")
             return None
 
         params["key"] = WEATHERAPI_KEY
-        await self._rate_limit()
 
         try:
             resp = await self._client.get(f"{WEATHERAPI_BASE}/{endpoint}", params=params)
@@ -203,9 +189,7 @@ class WeatherService:
         result = await self._get_or_fetch(cache_key, lat, lon, days, cache_expire=1800)
 
         if result and not result.get("historical_hourly"):
-            historical = await self._fetch_historical_hourly(lat, lon)
-            if historical:
-                result["historical_hourly"] = historical
+            _ = asyncio.create_task(self._fetch_historical_hourly(lat, lon))
 
         return result
 
