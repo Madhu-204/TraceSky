@@ -1,76 +1,45 @@
 import os
 import asyncio
-import random
 import time as _time
-import urllib.error
 from typing import Optional
 from datetime import date, datetime, timedelta
 
+import httpx
+
 from app.cache import get_cache, get_cache_stale, set_cache
 
-OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
-
-USER_AGENT = f"TraceSky/1.0 (contact: {os.getenv('SMTP_FROM_EMAIL', 'tracesky@app')})"
-
-WMO_CODES: dict[int, str] = {
-    0: "Clear Sky", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
-    45: "Fog", 48: "Depositing Rime Fog",
-    51: "Light Drizzle", 53: "Moderate Drizzle", 55: "Dense Drizzle",
-    56: "Light Freezing Drizzle", 57: "Dense Freezing Drizzle",
-    61: "Slight Rain", 63: "Moderate Rain", 65: "Heavy Rain",
-    66: "Light Freezing Rain", 67: "Heavy Freezing Rain",
-    71: "Slight Snow", 73: "Moderate Snow", 75: "Heavy Snow",
-    77: "Snow Grains",
-    80: "Slight Rain Showers", 81: "Moderate Rain Showers", 82: "Violent Rain Showers",
-    85: "Slight Snow Showers", 86: "Heavy Snow Showers",
-    95: "Thunderstorm", 96: "Thunderstorm with Slight Hail", 99: "Thunderstorm with Heavy Hail",
-}
-
-CURRENT_PARAMS = "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,uv_index"
-HOURLY_PARAMS = "temperature_2m,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,uv_index,relative_humidity_2m,pressure_msl"
-DAILY_PARAMS = "temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code,wind_speed_10m_max,uv_index_max,sunrise,sunset"
-
-
-def map_weather_code(code: int) -> str:
-    return WMO_CODES.get(code, "Unknown")
-
-
-def map_weather_icon(code: int) -> str:
-    if code == 0:
-        return "sunny"
-    elif code in (1, 2):
-        return "cloudy"
-    elif code == 3:
-        return "overcast"
-    elif code in (45, 48):
-        return "fog"
-    elif code in (51, 53, 55, 56, 57):
-        return "drizzle"
-    elif code in (61, 63, 65, 66, 67, 80, 81, 82):
-        return "rain"
-    elif code in (71, 73, 75, 77, 85, 86):
-        return "snow"
-    elif code in (95, 96, 99):
-        return "storm"
-    return "cloudy"
-
-
-def map_confidence(precipitation_probability: float) -> str:
-    if precipitation_probability < 30:
-        return "HIGH"
-    elif precipitation_probability < 70:
-        return "MEDIUM"
-    return "LOW"
-
+WEATHERAPI_BASE = "https://api.weatherapi.com/v1"
+WEATHERAPI_KEY = os.getenv("WEATHERAPI_KEY", "")
 
 _pending_fetches: dict[str, asyncio.Event] = {}
 _pending_lock = asyncio.Lock()
 _last_api_call: float = 0.0
 _api_call_lock = asyncio.Lock()
-RATE_LIMIT_SECONDS = 2.0
-_default_lat: Optional[float] = None
-_default_lon: Optional[float] = None
+
+CONDITION_TO_ICON: dict[int, str] = {
+    1000: "sunny", 1003: "cloudy", 1006: "cloudy", 1009: "overcast",
+    1030: "fog", 1063: "rain", 1066: "snow", 1069: "sleet",
+    1072: "freezing drizzle", 1087: "storm",
+    1114: "snow", 1117: "snow", 1135: "fog", 1147: "fog",
+    1150: "drizzle", 1153: "drizzle", 1168: "freezing drizzle", 1171: "freezing drizzle",
+    1180: "rain", 1183: "rain", 1186: "rain", 1189: "rain",
+    1192: "rain", 1195: "rain", 1198: "freezing rain", 1201: "freezing rain",
+    1204: "sleet", 1207: "sleet",
+    1210: "snow", 1213: "snow", 1216: "snow", 1219: "snow",
+    1222: "snow", 1225: "snow", 1237: "hail",
+    1240: "rain", 1243: "rain", 1246: "rain",
+    1249: "sleet", 1252: "sleet",
+    1255: "snow", 1258: "snow", 1261: "hail", 1264: "hail",
+    1273: "storm", 1276: "storm", 1279: "storm", 1282: "storm",
+}
+
+
+def _icon(code: int) -> str:
+    return CONDITION_TO_ICON.get(code, "cloudy")
+
+
+def _confidence(prob: float) -> str:
+    return "HIGH" if prob < 30 else "MEDIUM" if prob < 70 else "LOW"
 
 
 async def _wait_or_register_fetch(cache_key: str) -> bool:
@@ -94,48 +63,48 @@ async def _mark_fetch_done(cache_key: str) -> None:
 class WeatherService:
 
     def __init__(self):
-        self.client = None
+        self._client = httpx.AsyncClient(timeout=15)
 
     async def close(self):
-        pass
+        await self._client.aclose()
 
     async def _rate_limit(self) -> None:
         global _last_api_call
         async with _api_call_lock:
             now = _time.monotonic()
             since_last = now - _last_api_call
-            if since_last < RATE_LIMIT_SECONDS:
-                await asyncio.sleep(RATE_LIMIT_SECONDS - since_last)
+            if since_last < 0.6:
+                await asyncio.sleep(0.6 - since_last)
             _last_api_call = _time.monotonic()
 
-    async def _fetch(self, url: str, params: dict) -> dict | None:
-        import urllib.request
-        import urllib.parse
-        import json
+    async def _fetch(self, endpoint: str, params: dict) -> dict | None:
+        if not WEATHERAPI_KEY:
+            print("WEATHERAPI_KEY not configured")
+            return None
 
+        params["key"] = WEATHERAPI_KEY
         await self._rate_limit()
 
-        for attempt in range(2):
-            try:
-                query = urllib.parse.urlencode(params)
-                full_url = f"{url}?{query}"
-                req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    return json.loads(resp.read().decode())
-            except urllib.error.HTTPError as e:
-                if e.code == 429 and attempt == 0:
-                    print(f"Rate limited, retrying in 10s...")
-                    await asyncio.sleep(10)
-                else:
-                    print(f"Weather fetch error ({e.code}): {e}")
-                    return None
-            except Exception as e:
-                print(f"Weather fetch error: {e}")
-                return None
-        return None
+        try:
+            resp = await self._client.get(f"{WEATHERAPI_BASE}/{endpoint}", params=params)
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPStatusError as e:
+            print(f"WeatherAPI error ({e.response.status_code}): {e}")
+            return None
+        except Exception as e:
+            print(f"WeatherAPI error: {e}")
+            return None
 
-    async def _get_or_fetch(self, cache_key: str, url: str, params: dict, cache_expire: int,
-                            post_process=None) -> Optional[dict]:
+    async def _fetch_forecast_api(self, lat: float, lon: float, days: int) -> dict | None:
+        return await self._fetch("forecast.json", {
+            "q": f"{lat},{lon}",
+            "days": str(min(days, 14)),
+            "aqi": "no", "alerts": "no",
+        })
+
+    async def _get_or_fetch(self, cache_key: str, lat: float, lon: float, days: int,
+                            cache_expire: int) -> Optional[dict]:
         cached = get_cache(cache_key)
         if cached is not None:
             return cached
@@ -149,15 +118,14 @@ class WeatherService:
             if cached_after is not None:
                 return cached_after
 
-            data = await self._fetch(url, params)
+            data = await self._fetch_forecast_api(lat, lon, days)
             if data:
-                result = post_process(data) if post_process else data
+                result = self._build_response(data, days)
                 set_cache(cache_key, result, expire=cache_expire)
                 return result
 
             stale = get_cache_stale(cache_key)
             if stale is not None:
-                print(f"Serving stale cache for {cache_key}")
                 set_cache(cache_key, stale, expire=60)
                 return stale
 
@@ -166,7 +134,7 @@ class WeatherService:
             await _mark_fetch_done(cache_key)
 
     async def get_current_weather(self, lat: float, lon: float) -> Optional[dict]:
-        cache_key = f"weather:current:{lat:.2f}:{lon:.2f}"
+        cache_key = f"current:{lat:.2f}:{lon:.2f}"
 
         cached = get_cache(cache_key)
         if cached is not None:
@@ -193,146 +161,110 @@ class WeatherService:
         return None
 
     async def get_forecast(self, lat: float, lon: float, days: int = 7, include_past: bool = True) -> Optional[dict]:
-        cache_key = f"weather:forecast:{lat:.2f}:{lon:.2f}:{days}:past={include_past}"
+        cache_key = f"forecast:{lat:.2f}:{lon:.2f}:days={days}"
+        return await self._get_or_fetch(cache_key, lat, lon, days, cache_expire=1800)
 
-        params: dict[str, str] = {
-            "latitude": str(lat), "longitude": str(lon),
-            "current": CURRENT_PARAMS,
-            "hourly": HOURLY_PARAMS,
-            "daily": DAILY_PARAMS,
-            "timezone": "auto",
-            "forecast_days": str(days),
-        }
-        if include_past:
-            params["past_days"] = "1"
-
-        return await self._get_or_fetch(
-            cache_key, OPEN_METEO_FORECAST_URL, params,
-            cache_expire=1800, post_process=self._build_forecast_response,
-        )
-
-    async def get_historical_hourly(self, lat: float, lon: float) -> Optional[list[dict]]:
-        cache_key = f"weather:historical_hourly:{lat:.2f}:{lon:.2f}"
-        cached = get_cache(cache_key)
-        if cached:
-            return cached
-
-        try:
-            forecast = await self.get_forecast(lat, lon, days=1, include_past=True)
-            if not forecast:
-                return None
-            result = forecast.get("historical_hourly", [])
-            if result:
-                set_cache(cache_key, result, expire=3600)
-            return result
-        except Exception as e:
-            print(f"Historical hourly fetch error: {e}")
-            return None
+    async def get_historical_hourly(self, lat: float, lon: float) -> Optional[list]:
+        return None
 
     async def get_historical(self, lat: float, lon: float, start_date: date, end_date: date) -> Optional[dict]:
-        cache_key = f"weather:historical:{lat:.2f}:{lon:.2f}:{start_date}:{end_date}"
+        return None
 
-        def _build(data):
-            daily = data.get("daily", {})
-            return {
-                "dates": daily.get("time", []),
-                "temperature_max": daily.get("temperature_2m_max", []),
-                "temperature_min": daily.get("temperature_2m_min", []),
-                "temperature_mean": daily.get("temperature_2m_mean", []),
-                "precipitation_sum": daily.get("precipitation_sum", []),
-                "precipitation_hours": daily.get("precipitation_hours", []),
-                "wind_speed_max": daily.get("wind_speed_10m_max", []),
-                "uv_index_max": daily.get("uv_index_max", []),
-                "sunshine_hours": daily.get("sunshine_hours", []),
-            }
-
-        return await self._get_or_fetch(
-            cache_key, OPEN_METEO_ARCHIVE_URL,
-            {"latitude": str(lat), "longitude": str(lon),
-             "start_date": start_date.isoformat(),
-             "end_date": end_date.isoformat(),
-             "daily": "temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,precipitation_hours,wind_speed_10m_max,uv_index_max,sunshine_hours",
-             "timezone": "auto"},
-            cache_expire=3600, post_process=_build,
-        )
-
-    def _build_forecast_response(self, raw: dict) -> dict:
+    def _build_response(self, raw: dict, days: int) -> dict:
+        loc = raw.get("location", {})
         current = raw.get("current", {})
-        hourly = raw.get("hourly", {})
-        daily = raw.get("daily", {})
+        tz_id = loc.get("tz_id", "UTC")
 
         now = datetime.now()
         today = now.date()
         yesterday = today - timedelta(days=1)
 
         current_weather = {
-            "temperature": current.get("temperature_2m"),
-            "feels_like": current.get("apparent_temperature"),
-            "humidity": current.get("relative_humidity_2m"),
-            "wind_speed": current.get("wind_speed_10m"),
-            "wind_direction": current.get("wind_direction_10m"),
-            "uv_index": current.get("uv_index"),
-            "precipitation": current.get("precipitation"),
-            "condition": map_weather_code(current.get("weather_code", 0)),
-            "icon": map_weather_icon(current.get("weather_code", 0)),
-            "weather_code": current.get("weather_code"),
+            "temperature": current.get("temp_c"),
+            "feels_like": current.get("feelslike_c"),
+            "humidity": current.get("humidity"),
+            "wind_speed": current.get("wind_kph"),
+            "wind_direction": current.get("wind_degree"),
+            "uv_index": current.get("uv"),
+            "precipitation": current.get("precip_mm"),
+            "condition": current.get("condition", {}).get("text", ""),
+            "icon": _icon(current.get("condition", {}).get("code", 0)),
+            "weather_code": current.get("condition", {}).get("code", 0),
         }
 
-        hourly_rows = []
-        historical_hourly = []
-        times = hourly.get("time", [])
-        for i in range(len(times)):
-            code = hourly.get("weather_code", [0])[i] if i < len(hourly.get("weather_code", [])) else 0
-            precip = hourly.get("precipitation_probability", [0])[i] if i < len(hourly.get("precipitation_probability", [])) else 0
-            time_str = times[i]
-            dt = datetime.fromisoformat(time_str) if isinstance(time_str, str) else now
-
-            row = {
-                "time": dt.strftime("%H:%M") if isinstance(dt, datetime) else time_str,
-                "iso_time": time_str,
-                "is_today": dt.date() == today if isinstance(dt, datetime) else True,
-                "temperature": hourly.get("temperature_2m", [])[i] if i < len(hourly.get("temperature_2m", [])) else None,
-                "precipitation_probability": precip,
-                "weather_code": code,
-                "condition": map_weather_code(code),
-                "icon": map_weather_icon(code),
-                "wind_speed": hourly.get("wind_speed_10m", [])[i] if i < len(hourly.get("wind_speed_10m", [])) else None,
-                "wind_direction": hourly.get("wind_direction_10m", [])[i] if i < len(hourly.get("wind_direction_10m", [])) else None,
-                "uv_index": hourly.get("uv_index", [])[i] if i < len(hourly.get("uv_index", [])) else None,
-                "humidity": hourly.get("relative_humidity_2m", [])[i] if i < len(hourly.get("relative_humidity_2m", [])) else None,
-                "pressure": hourly.get("pressure_msl", [])[i] if i < len(hourly.get("pressure_msl", [])) else None,
-                "confidence": map_confidence(precip),
-            }
-
-            if isinstance(dt, datetime) and dt.date() == yesterday:
-                historical_hourly.append(row)
-            else:
-                hourly_rows.append(row)
-
-        daily_rows = []
-        day_times = daily.get("time", [])
+        hourly_rows: list[dict] = []
+        historical_hourly: list[dict] = []
+        daily_rows: list[dict] = []
         day_names = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-        for i in range(len(day_times)):
-            time_str = day_times[i]
-            dt = datetime.fromisoformat(time_str) if isinstance(time_str, str) else now
-            if isinstance(dt, datetime) and dt.date() < today:
-                continue
-            code = daily.get("weather_code", [0])[i] if i < len(daily.get("weather_code", [])) else 0
+
+        for day_data in raw.get("forecast", {}).get("forecastday", []):
+            date_str = day_data.get("date", "")
+            try:
+                dt = datetime.fromisoformat(date_str) if date_str else now
+                d = dt.date()
+            except (ValueError, TypeError):
+                d = today
+
+            is_yesterday = d == yesterday
+
+            day_info = day_data.get("day", {})
+            astro = day_data.get("astro", {})
             daily_rows.append({
-                "date": day_times[i],
-                "day": day_names[dt.weekday()] if isinstance(dt, datetime) else day_times[i],
-                "temperature_max": daily.get("temperature_2m_max", [])[i] if i < len(daily.get("temperature_2m_max", [])) else None,
-                "temperature_min": daily.get("temperature_2m_min", [])[i] if i < len(daily.get("temperature_2m_min", [])) else None,
-                "precipitation_probability": daily.get("precipitation_probability_max", [])[i] if i < len(daily.get("precipitation_probability_max", [])) else None,
-                "precipitation_sum": daily.get("precipitation_sum", [])[i] if i < len(daily.get("precipitation_sum", [])) else None,
-                "weather_code": code,
-                "condition": map_weather_code(code),
-                "icon": map_weather_icon(code),
-                "wind_speed": daily.get("wind_speed_10m_max", [])[i] if i < len(daily.get("wind_speed_10m_max", [])) else None,
-                "uv_index": daily.get("uv_index_max", [])[i] if i < len(daily.get("uv_index_max", [])) else None,
-                "sunrise": daily.get("sunrise", [])[i] if i < len(daily.get("sunrise", [])) else None,
-                "sunset": daily.get("sunset", [])[i] if i < len(daily.get("sunset", [])) else None,
+                "date": date_str,
+                "day": day_names[dt.weekday()] if isinstance(dt, datetime) else date_str,
+                "temperature_max": day_info.get("maxtemp_c"),
+                "temperature_min": day_info.get("mintemp_c"),
+                "precipitation_probability": day_info.get("daily_chance_of_rain"),
+                "precipitation_sum": day_info.get("totalprecip_mm"),
+                "weather_code": day_info.get("condition", {}).get("code", 0),
+                "condition": day_info.get("condition", {}).get("text", ""),
+                "icon": _icon(day_info.get("condition", {}).get("code", 0)),
+                "wind_speed": day_info.get("maxwind_kph"),
+                "uv_index": day_info.get("uv"),
+                "sunrise": astro.get("sunrise"),
+                "sunset": astro.get("sunset"),
             })
+
+            for hour in day_data.get("hour", []):
+                time_str = hour.get("time", "")
+                code = hour.get("condition", {}).get("code", 0)
+                precip_prob = hour.get("chance_of_rain", 0)
+
+                try:
+                    hour_dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M") if time_str else now
+                    is_today = hour_dt.date() == today if isinstance(hour_dt, datetime) else True
+                    fmt_time = hour_dt.strftime("%H:%M")
+                except (ValueError, TypeError):
+                    try:
+                        hour_dt = datetime.fromisoformat(time_str) if time_str else now
+                        is_today = hour_dt.date() == today if isinstance(hour_dt, datetime) else True
+                        fmt_time = hour_dt.strftime("%H:%M") if isinstance(hour_dt, datetime) else time_str
+                    except (ValueError, TypeError):
+                        hour_dt = now
+                        is_today = True
+                        fmt_time = time_str
+
+                row = {
+                    "time": fmt_time,
+                    "iso_time": time_str,
+                    "is_today": is_today,
+                    "temperature": hour.get("temp_c"),
+                    "precipitation_probability": precip_prob,
+                    "weather_code": code,
+                    "condition": hour.get("condition", {}).get("text", ""),
+                    "icon": _icon(code),
+                    "wind_speed": hour.get("wind_kph"),
+                    "wind_direction": hour.get("wind_degree"),
+                    "uv_index": hour.get("uv"),
+                    "humidity": hour.get("humidity"),
+                    "pressure": hour.get("pressure_mb"),
+                    "confidence": _confidence(precip_prob),
+                }
+
+                if is_yesterday and isinstance(hour_dt, datetime) and hour_dt.date() == yesterday:
+                    historical_hourly.append(row)
+                else:
+                    hourly_rows.append(row)
 
         return {
             "current": current_weather,
@@ -340,29 +272,9 @@ class WeatherService:
             "daily": daily_rows,
             "historical_hourly": historical_hourly,
             "location": {
-                "latitude": raw.get("latitude"),
-                "longitude": raw.get("longitude"),
-                "timezone": raw.get("timezone"),
+                "latitude": loc.get("lat"),
+                "longitude": loc.get("lon"),
+                "timezone": tz_id,
             },
             "generated_at": now.isoformat(),
         }
-
-
-def set_default_location(lat: float, lon: float) -> None:
-    global _default_lat, _default_lon
-    _default_lat = lat
-    _default_lon = lon
-
-
-async def warm_cache() -> None:
-    lat = _default_lat or float(os.getenv("WARMUP_LAT", "19.2183"))
-    lon = _default_lon or float(os.getenv("WARMUP_LON", "72.9781"))
-    svc = WeatherService()
-    try:
-        result = await svc.get_forecast(lat, lon, 7)
-        if result:
-            print(f"Cache warmed for ({lat}, {lon})")
-    except Exception as e:
-        print(f"Cache warmup failed: {e}")
-    finally:
-        await svc.close()
