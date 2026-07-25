@@ -16,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActi
   const user = useAuthStore((state) => state.user);
   const currentLocation = useLocationStore((s) => s.currentLocation);
   const setCurrentLocation = useLocationStore((s) => s.setCurrentLocation);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [modalOpen, setModalOpen] = React.useState(false);
 
@@ -117,6 +118,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab = 'dashboard', setActi
         onClose={() => setModalOpen(false)}
         onSelect={(city) => {
           setCurrentLocation({ city, lastUpdated: new Date().toISOString() });
+          if (user) {
+            updateProfile({ name: user.name, location_default: city.id });
+          }
         }}
       />
 
