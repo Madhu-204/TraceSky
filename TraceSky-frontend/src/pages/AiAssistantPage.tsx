@@ -26,7 +26,7 @@ export const AiAssistantPage: React.FC = () => {
   };
 
   return (
-    <div className="pt-20 pb-4 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] h-screen text-gray-100 flex flex-col justify-between transition-all">
+    <div className="pt-4 sm:pt-6 lg:pt-20 pb-4 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] h-screen text-gray-100 flex flex-col justify-between transition-all">
 
       <div className="flex justify-between items-center border-b border-[#1C2345] pb-4 shrink-0">
         <div>

@@ -44,7 +44,7 @@ export const AnalyticsPage: React.FC = () => {
 
   if (isAnalyticsLoading && !analyticsReport) {
     return (
-      <div className="pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all flex items-center justify-center">
+      <div className="pt-4 sm:pt-6 lg:pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all flex items-center justify-center">
         <p className="text-gray-500 text-sm">Running inference engine for analytics...</p>
       </div>
     );
@@ -52,7 +52,7 @@ export const AnalyticsPage: React.FC = () => {
 
   if (analyticsError && !analyticsReport) {
     return (
-      <div className="pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all flex items-center justify-center">
+      <div className="pt-4 sm:pt-6 lg:pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all flex items-center justify-center">
         <p className="text-red-400 text-sm">Error loading analytics: {analyticsError}</p>
       </div>
     );
@@ -60,7 +60,7 @@ export const AnalyticsPage: React.FC = () => {
 
   if (!analyticsReport) {
     return (
-      <div className="pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all flex items-center justify-center">
+      <div className="pt-4 sm:pt-6 lg:pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all flex items-center justify-center">
         <p className="text-gray-500 text-sm">No analytics data available.</p>
       </div>
     );
@@ -71,7 +71,7 @@ export const AnalyticsPage: React.FC = () => {
   const anomalyCount = report.anomaly_events.length;
 
   return (
-    <div className="pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all">
+    <div className="pt-4 sm:pt-6 lg:pt-20 pb-6 px-4 sm:px-6 lg:px-8 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 space-y-6 transition-all">
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-[#1C2345] pb-5">
         <div>

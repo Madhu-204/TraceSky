@@ -100,14 +100,14 @@ export const ForecastPage: React.FC = () => {
 
   if (isLoading && !forecast) {
     return (
-      <div className="pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all flex items-center justify-center">
+      <div className="pt-4 sm:pt-6 lg:pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all flex items-center justify-center">
         <p className="text-gray-500 text-sm">Loading forecast data...</p>
       </div>
     );
   }
 
   return (
-    <div className="pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all">
+    <div className="pt-4 sm:pt-6 lg:pt-20 pb-8 px-4 sm:px-6 lg:px-8 space-y-6 lg:ml-64 bg-[#070A14] min-h-screen text-gray-100 transition-all">
 
       <div className="flex items-center justify-between">
         <div>
