@@ -182,9 +182,14 @@ class AIService:
 
         return facts, current or {}, forecast or {}, data_source
 
-    def _validate_forecast(self, forecast: dict) -> dict:
+    def _validate_forecast(self, forecast: dict, lat: float = 0, lon: float = 0) -> dict:
         hourly = forecast.get("hourly", [])
         historical = forecast.get("historical_hourly", [])
+        if not historical and lat and lon:
+            hist_cache_key = f"openmeteo_hist:{lat:.2f}:{lon:.2f}"
+            hist_cached = get_cache(hist_cache_key)
+            if hist_cached:
+                historical = hist_cached
         current_temp = (forecast.get("current") or {}).get("temperature")
 
         historical_by_hour: dict[str, dict] = {}
@@ -282,7 +287,7 @@ class AIService:
 
     async def _run_inference(self, lat: float, lon: float) -> tuple[list[Fact], dict, dict, dict]:
         facts, current, forecast, data_source = await self._extract_facts(lat, lon)
-        forecast_validation = self._validate_forecast(forecast)
+        forecast_validation = self._validate_forecast(forecast, lat, lon)
 
         for vh in forecast_validation.get("validated_hours", []):
             facts.append(Fact(

@@ -15,9 +15,10 @@ export const ForecastExpertInsights: React.FC<ForecastExpertInsightsProps> = ({
 }) => {
   const { temp } = useUnitSystem();
   const status = validation?.overall_status ?? 'NONE';
+  const hoursValidated = validation?.hours_validated ?? 0;
+  const hasData = hoursValidated > 0;
   const avgConfidence = validation?.average_confidence ?? 0;
   const avgDeviation = validation?.average_temp_deviation;
-  const hoursValidated = validation?.hours_validated ?? 0;
 
   const statusColor: Record<string, string> = {
     HIGH: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -61,22 +62,22 @@ export const ForecastExpertInsights: React.FC<ForecastExpertInsightsProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-[#111630] border border-[#1C2340] rounded-xl p-3 space-y-1">
           <p className="text-[9px] text-gray-500 font-bold tracking-wider uppercase">Avg Confidence</p>
-          <p className={`text-lg font-black font-mono ${avgConfidence >= 0.7 ? 'text-emerald-400' : avgConfidence >= 0.4 ? 'text-amber-400' : 'text-red-400'}`}>
-            {Math.round(avgConfidence * 100)}%
+          <p className={`text-lg font-black font-mono ${!hasData ? 'text-gray-500' : avgConfidence >= 0.7 ? 'text-emerald-400' : avgConfidence >= 0.4 ? 'text-amber-400' : 'text-red-400'}`}>
+            {hasData ? `${Math.round(avgConfidence * 100)}%` : 'N/A'}
           </p>
         </div>
 
         <div className="bg-[#111630] border border-[#1C2340] rounded-xl p-3 space-y-1">
           <p className="text-[9px] text-gray-500 font-bold tracking-wider uppercase">Temp Deviation</p>
           <p className="text-lg font-black font-mono text-white">
-            {avgDeviation != null ? `±${temp(avgDeviation).value}${temp(avgDeviation).unit}` : '--'}
+            {avgDeviation != null ? `±${temp(avgDeviation).value}${temp(avgDeviation).unit}` : hasData ? '--' : 'N/A'}
           </p>
         </div>
 
         <div className="bg-[#111630] border border-[#1C2340] rounded-xl p-3 space-y-1">
           <p className="text-[9px] text-gray-500 font-bold tracking-wider uppercase">Hours Validated</p>
           <p className="text-lg font-black font-mono text-white">
-            {hoursValidated}h
+            {hasData ? `${hoursValidated}h` : '--'}
           </p>
         </div>
 

@@ -6,9 +6,10 @@ import { useUnitSystem } from '../../utils/unitConversion';
 interface HourlyGranularityTableProps {
   hours: HourlyTelemetry[];
   totalAvailable: number;
+  hasHistoricalData?: boolean;
 }
 
-export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ hours, totalAvailable }) => {
+export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ hours, totalAvailable, hasHistoricalData }) => {
   const { temp, wind } = useUnitSystem();
   const [showAll, setShowAll] = useState(false);
   const displayHours = showAll ? hours : hours.slice(0, 48);
@@ -70,8 +71,8 @@ export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ 
               <th className="pb-3 pl-2">Time</th>
               <th className="pb-3">Condition</th>
               <th className="pb-3">Temp ({temp(0).unit})</th>
-              <th className="pb-3">Yesterday</th>
-              <th className="pb-3">Deviation</th>
+              {hasHistoricalData && <th className="pb-3">Yesterday</th>}
+              {hasHistoricalData && <th className="pb-3">Deviation</th>}
               <th className="pb-3">Prec. Chance</th>
               <th className="pb-3">Wind</th>
               <th className="pb-3">Pressure</th>
@@ -81,7 +82,7 @@ export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ 
           <tbody className="text-xs font-medium text-gray-300 divide-y divide-[#161B33]/40">
             {displayHours.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-gray-500 italic">No forecast data available</td>
+                <td colSpan={hasHistoricalData ? 9 : 7} className="py-8 text-center text-gray-500 italic">No forecast data available</td>
               </tr>
             )}
             {displayHours.map((row, index) => (
@@ -97,18 +98,22 @@ export const HourlyGranularityTable: React.FC<HourlyGranularityTableProps> = ({ 
                   </div>
                 </td>
                 <td className="py-3.5 font-mono text-white font-semibold">{temp(row.temperature).value}{temp(row.temperature).unit}</td>
-                <td className="py-3.5 font-mono text-gray-500">
-                  {row.historicalTemp != null ? `${temp(row.historicalTemp).value}${temp(row.historicalTemp).unit}` : '--'}
-                </td>
-                <td className="py-3.5 font-mono">
-                  {row.tempDeviation != null ? (
-                    <span className={row.tempDeviation <= 2 ? 'text-emerald-400' : row.tempDeviation <= 5 ? 'text-amber-400' : 'text-red-400'}>
-                      {row.tempDeviation > 0 ? '+' : ''}{temp(row.tempDeviation).value}{temp(row.tempDeviation).unit}
-                    </span>
-                  ) : (
-                    <span className="text-gray-600">--</span>
-                  )}
-                </td>
+                {hasHistoricalData && (
+                  <td className="py-3.5 font-mono text-gray-500">
+                    {row.historicalTemp != null ? `${temp(row.historicalTemp).value}${temp(row.historicalTemp).unit}` : '--'}
+                  </td>
+                )}
+                {hasHistoricalData && (
+                  <td className="py-3.5 font-mono">
+                    {row.tempDeviation != null ? (
+                      <span className={row.tempDeviation <= 2 ? 'text-emerald-400' : row.tempDeviation <= 5 ? 'text-amber-400' : 'text-red-400'}>
+                        {row.tempDeviation > 0 ? '+' : ''}{temp(row.tempDeviation).value}{temp(row.tempDeviation).unit}
+                      </span>
+                    ) : (
+                      <span className="text-gray-600">--</span>
+                    )}
+                  </td>
+                )}
                 <td className="py-3.5">
                   <div className="flex items-center gap-2.5 max-w-[100px]">
                     <div className="w-12 h-1 bg-gray-900 rounded-full overflow-hidden shrink-0">

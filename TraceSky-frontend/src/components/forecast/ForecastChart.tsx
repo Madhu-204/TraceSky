@@ -9,10 +9,11 @@ interface ForecastChartProps {
   onRangeChange: (range: string) => void;
   averageConfidence?: number;
   averageDeviation?: number | null;
+  hasHistoricalData?: boolean;
 }
 
 export const ForecastChart: React.FC<ForecastChartProps> = ({
-  data, activeRange, onRangeChange, averageConfidence, averageDeviation,
+  data, activeRange, onRangeChange, averageConfidence, averageDeviation, hasHistoricalData,
 }) => {
   const { temp, wind } = useUnitSystem();
   const ranges = ['24H', '7D'];
@@ -58,9 +59,11 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-0.5 bg-blue-400 block" /> Predicted
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-0.5 border-t border-dashed border-gray-600 block" /> Yesterday
-        </div>
+        {hasHistoricalData && (
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-0.5 border-t border-dashed border-gray-600 block" /> Yesterday
+          </div>
+        )}
       </div>
 
       <div className="h-64 w-full relative">
@@ -101,10 +104,17 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
                           <span className="text-gray-500 font-sans">PREDICTED</span>
                           <span className="text-blue-400 font-bold">{temp(d.predicted).value}{temp(d.predicted).unit}</span>
                         </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-gray-500 font-sans">YESTERDAY</span>
-                          <span className="text-gray-400">{temp(d.historical).value}{temp(d.historical).unit}</span>
-                        </div>
+                        {d.forecastRate != null || d.historicalRate != null || d.tempDeviation != null ? (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-gray-500 font-sans">YESTERDAY</span>
+                            <span className="text-gray-400">{temp(d.historical).value}{temp(d.historical).unit}</span>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-gray-500 font-sans">YESTERDAY</span>
+                            <span className="text-gray-600 italic">N/A</span>
+                          </div>
+                        )}
                         {d.tempDeviation != null && (
                           <>
                             <div className="border-t border-[#1C2340] pt-1 mt-1" />
@@ -159,7 +169,9 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
                 return null;
               }}
             />
-            <Area type="monotone" dataKey="historical" stroke="#374151" strokeDasharray="4 4" fill="none" strokeWidth={1.5} />
+            {hasHistoricalData && (
+              <Area type="monotone" dataKey="historical" stroke="#374151" strokeDasharray="4 4" fill="none" strokeWidth={1.5} />
+            )}
             <Area type="monotone" dataKey="predicted" stroke="#60A5FA" strokeWidth={2} fill="url(#predictedGrad)" />
             <ReferenceLine x="16:00" stroke="#2563EB" strokeDasharray="3 3" />
           </AreaChart>
