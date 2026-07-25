@@ -99,8 +99,6 @@ export const useLocationStore = create<LocationState>()(
 
       hydrateFromUser: (user) => {
         if (!user.location_default) return;
-        const { defaultLocation } = get();
-        if (defaultLocation) return;
         const city = ALL_CITIES.find((c) => c.id === user.location_default);
         if (city) {
           set({

@@ -43,15 +43,12 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, []);
 
-  // Initialize auth on app load - check session via cookie
+  // Initialize auth on app load, then sync default to current
   useEffect(() => {
-    initAuth();
+    initAuth().finally(() => {
+      useLocationStore.getState().syncDefaultToCurrent();
+    });
   }, [initAuth]);
-
-  // Sync defaultLocation to currentLocation on app load (after rehydration)
-  useEffect(() => {
-    useLocationStore.getState().syncDefaultToCurrent();
-  }, []);
 
   // Show loading spinner while checking auth
   if (isLoading) {
