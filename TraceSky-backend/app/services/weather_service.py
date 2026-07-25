@@ -38,6 +38,44 @@ def _icon(code: int) -> str:
     return CONDITION_TO_ICON.get(code, "cloudy")
 
 
+WMO_CONDITIONS: dict[int, str] = {
+    0: "Clear Sky", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
+    45: "Fog", 48: "Depositing Rime Fog",
+    51: "Light Drizzle", 53: "Moderate Drizzle", 55: "Dense Drizzle",
+    56: "Light Freezing Drizzle", 57: "Dense Freezing Drizzle",
+    61: "Slight Rain", 63: "Moderate Rain", 65: "Heavy Rain",
+    66: "Light Freezing Rain", 67: "Heavy Freezing Rain",
+    71: "Slight Snow", 73: "Moderate Snow", 75: "Heavy Snow", 77: "Snow Grains",
+    80: "Slight Rain Showers", 81: "Moderate Rain Showers", 82: "Violent Rain Showers",
+    85: "Slight Snow Showers", 86: "Heavy Snow Showers",
+    95: "Thunderstorm", 96: "Thunderstorm with Slight Hail", 99: "Thunderstorm with Heavy Hail",
+}
+
+
+def _wmo_condition(code: int) -> str:
+    return WMO_CONDITIONS.get(code, "")
+
+
+def _wmo_icon(code: int) -> str:
+    if code == 0:
+        return "sunny"
+    elif code in (1, 2):
+        return "cloudy"
+    elif code == 3:
+        return "overcast"
+    elif code in (45, 48):
+        return "fog"
+    elif code in (51, 53, 55, 56, 57):
+        return "drizzle"
+    elif code in (61, 63, 65, 66, 67, 80, 81, 82):
+        return "rain"
+    elif code in (71, 73, 75, 77, 85, 86):
+        return "snow"
+    elif code in (95, 96, 99):
+        return "storm"
+    return "cloudy"
+
+
 def _confidence(prob: float) -> str:
     return "HIGH" if prob < 30 else "MEDIUM" if prob < 70 else "LOW"
 
@@ -162,10 +200,76 @@ class WeatherService:
 
     async def get_forecast(self, lat: float, lon: float, days: int = 7, include_past: bool = True) -> Optional[dict]:
         cache_key = f"forecast:{lat:.2f}:{lon:.2f}:days={days}"
-        return await self._get_or_fetch(cache_key, lat, lon, days, cache_expire=1800)
+        result = await self._get_or_fetch(cache_key, lat, lon, days, cache_expire=1800)
 
-    async def get_historical_hourly(self, lat: float, lon: float) -> Optional[list]:
-        return None
+        if result and not result.get("historical_hourly"):
+            historical = await self._fetch_historical_hourly(lat, lon)
+            if historical:
+                result["historical_hourly"] = historical
+
+        return result
+
+    async def _fetch_historical_hourly(self, lat: float, lon: float) -> Optional[list]:
+        cache_key = f"openmeteo_hist:{lat:.2f}:{lon:.2f}"
+        cached = get_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        yesterday = (datetime.now() - timedelta(days=1)).date()
+        params = {
+            "latitude": str(lat), "longitude": str(lon),
+            "start_date": yesterday.isoformat(),
+            "end_date": yesterday.isoformat(),
+            "hourly": "temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,relative_humidity_2m,pressure_msl",
+            "timezone": "auto",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.get("https://archive-api.open-meteo.com/v1/archive", params=params)
+                resp.raise_for_status()
+                data = resp.json()
+        except Exception as e:
+            print(f"Historical hourly fetch non-critical: {e}")
+            return None
+
+        hourly = data.get("hourly", {})
+        times = hourly.get("time", [])
+        if not times:
+            return None
+
+        yesterday_str = yesterday.isoformat()
+        rows = []
+        for i in range(len(times)):
+            time_str = times[i]
+            try:
+                dt = datetime.strptime(time_str, "%Y-%m-%dT%H:%M") if "T" in str(time_str) else datetime.fromisoformat(str(time_str))
+                fmt_time = dt.strftime("%H:%M")
+            except (ValueError, TypeError):
+                fmt_time = str(time_str)[-5:] if len(str(time_str)) >= 5 else str(time_str)
+
+            code = hourly.get("weather_code", [0])[i] if i < len(hourly.get("weather_code", [])) else 0
+            precip = hourly.get("precipitation", [0])[i] if i < len(hourly.get("precipitation", [])) else 0
+
+            rows.append({
+                "time": fmt_time,
+                "iso_time": time_str,
+                "is_today": False,
+                "temperature": hourly.get("temperature_2m", [])[i] if i < len(hourly.get("temperature_2m", [])) else None,
+                "precipitation_probability": precip,
+                "weather_code": code,
+                "condition": _wmo_condition(code),
+                "icon": _wmo_icon(code),
+                "wind_speed": hourly.get("wind_speed_10m", [])[i] if i < len(hourly.get("wind_speed_10m", [])) else None,
+                "wind_direction": hourly.get("wind_direction_10m", [])[i] if i < len(hourly.get("wind_direction_10m", [])) else None,
+                "uv_index": None,
+                "humidity": hourly.get("relative_humidity_2m", [])[i] if i < len(hourly.get("relative_humidity_2m", [])) else None,
+                "pressure": hourly.get("pressure_msl", [])[i] if i < len(hourly.get("pressure_msl", [])) else None,
+                "confidence": "",
+            })
+
+        set_cache(cache_key, rows, expire=3600)
+        return rows
 
     async def get_historical(self, lat: float, lon: float, start_date: date, end_date: date) -> Optional[dict]:
         return None
