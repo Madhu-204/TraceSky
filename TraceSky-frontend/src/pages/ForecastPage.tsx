@@ -95,6 +95,8 @@ export const ForecastPage: React.FC = () => {
     setActiveRange(range);
   };
 
+  const hoursValidated = forecastValidation?.hours_validated ?? 0;
+  const hasHistoricalData = hoursValidated > 0;
   const avgConf = forecastValidation?.average_confidence ?? 0;
   const totalHoursAvailable = hourlyData.length;
 
@@ -118,15 +120,17 @@ export const ForecastPage: React.FC = () => {
         </div>
         {forecastValidation && (
           <span className={`text-[10px] font-black tracking-wider px-3 py-1.5 rounded-lg border uppercase flex items-center gap-1.5 ${
+            !hasHistoricalData ? 'text-gray-500 bg-gray-500/10 border-gray-500/20' :
             forecastValidation.overall_status === 'HIGH' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
             forecastValidation.overall_status === 'MEDIUM' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
             'text-red-400 bg-red-500/10 border-red-500/20'
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${
+              !hasHistoricalData ? 'bg-gray-500' :
               forecastValidation.overall_status === 'HIGH' ? 'bg-emerald-400' :
               forecastValidation.overall_status === 'MEDIUM' ? 'bg-amber-400' : 'bg-red-400'
             }`} />
-            {forecastValidation.overall_status} Confidence
+            {hasHistoricalData ? `${forecastValidation.overall_status} Confidence` : 'Awaiting Validation'}
           </span>
         )}
       </div>
@@ -137,6 +141,7 @@ export const ForecastPage: React.FC = () => {
         onRangeChange={handleRangeChange}
         averageConfidence={avgConf}
         averageDeviation={forecastValidation?.average_temp_deviation}
+        hasHistoricalData={hasHistoricalData}
       />
 
       <MetricsGrid
@@ -148,6 +153,7 @@ export const ForecastPage: React.FC = () => {
       <HourlyGranularityTable
         hours={granularityRows}
         totalAvailable={totalHoursAvailable}
+        hasHistoricalData={hasHistoricalData}
       />
 
       <ForecastExpertInsights
@@ -173,9 +179,10 @@ export const ForecastPage: React.FC = () => {
         <div className="flex items-center gap-6 font-mono text-[11px] w-full sm:w-auto justify-between sm:justify-end text-gray-400 border-t sm:border-t-0 border-[#1C2340] pt-2 sm:pt-0">
           <div>
             Forecast Confidence: <span className={`font-bold ${
+              !hasHistoricalData ? 'text-gray-500' :
               avgConf >= 0.7 ? 'text-emerald-400' : avgConf >= 0.4 ? 'text-amber-400' : 'text-red-400'
             }`}>
-              {Math.round(avgConf * 100)}%
+              {hasHistoricalData ? `${Math.round(avgConf * 100)}%` : 'Pending...'}
             </span>
           </div>
           <div>

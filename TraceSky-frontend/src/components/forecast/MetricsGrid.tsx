@@ -37,6 +37,8 @@ export const MetricsGrid: React.FC<MetricsGridProps> = ({ daily, hourly, validat
   const windStatus = avgWind >= 30 ? 'Windy' : avgWind >= 15 ? 'Moderate' : 'Calm';
   const windColor = avgWind >= 30 ? 'text-red-400' : avgWind >= 15 ? 'text-amber-400' : 'text-emerald-400';
 
+  const hoursValidated = validation?.hours_validated ?? 0;
+  const hasData = hoursValidated > 0;
   const avgConfidence = validation?.average_confidence ?? 0;
   const overallStatus = validation?.overall_status ?? 'NONE';
 
@@ -106,7 +108,7 @@ export const MetricsGrid: React.FC<MetricsGridProps> = ({ daily, hourly, validat
         </div>
         <div className={`text-[10px] font-bold text-center mt-1 ${windColor}`}>
           {windStatus}
-          {overallStatus !== 'NONE' && (
+          {hasData && (
             <span className="ml-2 text-gray-600 font-mono">
               (CF: {Math.round(avgConfidence * 100)}%)
             </span>

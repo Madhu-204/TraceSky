@@ -189,11 +189,16 @@ class WeatherService:
         result = await self._get_or_fetch(cache_key, lat, lon, days, cache_expire=1800)
 
         if result and not result.get("historical_hourly"):
-            _ = asyncio.create_task(self._fetch_historical_hourly(lat, lon))
+            hist_cache_key = f"openmeteo_hist:{lat:.2f}:{lon:.2f}"
+            hist = get_cache(hist_cache_key)
+            if hist:
+                result["historical_hourly"] = hist
+            else:
+                _ = asyncio.create_task(self._fetch_and_merge_historical(lat, lon))
 
         return result
 
-    async def _fetch_historical_hourly(self, lat: float, lon: float) -> Optional[list]:
+    async def _fetch_and_merge_historical(self, lat: float, lon: float) -> Optional[list]:
         cache_key = f"openmeteo_hist:{lat:.2f}:{lon:.2f}"
         cached = get_cache(cache_key)
         if cached is not None:
@@ -253,6 +258,14 @@ class WeatherService:
             })
 
         set_cache(cache_key, rows, expire=3600)
+
+        # Merge historical into the forecast cache so subsequent requests have it
+        forecast_cache_key = f"forecast:{lat:.2f}:{lon:.2f}:days=7"
+        forecast = get_cache(forecast_cache_key)
+        if forecast:
+            forecast["historical_hourly"] = rows
+            set_cache(forecast_cache_key, forecast, expire=1800)
+
         return rows
 
     async def get_historical(self, lat: float, lon: float, start_date: date, end_date: date) -> Optional[dict]:
