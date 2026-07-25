@@ -68,6 +68,9 @@ _pending_fetches: dict[str, asyncio.Event] = {}
 _pending_lock = asyncio.Lock()
 _last_api_call: float = 0.0
 _api_call_lock = asyncio.Lock()
+RATE_LIMIT_SECONDS = 2.0
+_default_lat: Optional[float] = None
+_default_lon: Optional[float] = None
 
 
 async def _wait_or_register_fetch(cache_key: str) -> bool:
@@ -88,22 +91,6 @@ async def _mark_fetch_done(cache_key: str) -> None:
             event.set()
 
 
-def _extract_current(raw: dict) -> dict:
-    current = raw.get("current", {})
-    return {
-        "temperature": current.get("temperature_2m"),
-        "feels_like": current.get("apparent_temperature"),
-        "humidity": current.get("relative_humidity_2m"),
-        "wind_speed": current.get("wind_speed_10m"),
-        "wind_direction": current.get("wind_direction_10m"),
-        "uv_index": current.get("uv_index"),
-        "precipitation": current.get("precipitation"),
-        "condition": map_weather_code(current.get("weather_code", 0)),
-        "icon": map_weather_icon(current.get("weather_code", 0)),
-        "weather_code": current.get("weather_code"),
-    }
-
-
 class WeatherService:
 
     def __init__(self):
@@ -117,8 +104,8 @@ class WeatherService:
         async with _api_call_lock:
             now = _time.monotonic()
             since_last = now - _last_api_call
-            if since_last < 1.0:
-                await asyncio.sleep(1.0 - since_last)
+            if since_last < RATE_LIMIT_SECONDS:
+                await asyncio.sleep(RATE_LIMIT_SECONDS - since_last)
             _last_api_call = _time.monotonic()
 
     async def _fetch(self, url: str, params: dict) -> dict | None:
@@ -128,18 +115,24 @@ class WeatherService:
 
         await self._rate_limit()
 
-        try:
-            query = urllib.parse.urlencode(params)
-            full_url = f"{url}?{query}"
-            req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return json.loads(resp.read().decode())
-        except urllib.error.HTTPError as e:
-            print(f"Weather fetch error ({e.code}): {e}")
-            return None
-        except Exception as e:
-            print(f"Weather fetch error: {e}")
-            return None
+        for attempt in range(2):
+            try:
+                query = urllib.parse.urlencode(params)
+                full_url = f"{url}?{query}"
+                req = urllib.request.Request(full_url, headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    return json.loads(resp.read().decode())
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt == 0:
+                    print(f"Rate limited, retrying in 10s...")
+                    await asyncio.sleep(10)
+                else:
+                    print(f"Weather fetch error ({e.code}): {e}")
+                    return None
+            except Exception as e:
+                print(f"Weather fetch error: {e}")
+                return None
+        return None
 
     async def _get_or_fetch(self, cache_key: str, url: str, params: dict, cache_expire: int,
                             post_process=None) -> Optional[dict]:
@@ -179,8 +172,7 @@ class WeatherService:
         if cached is not None:
             return cached
 
-        forecast_key = f"weather:forecast:{lat:.2f}:{lon:.2f}:7:past=True"
-        forecast = get_cache(forecast_key) or get_cache_stale(forecast_key)
+        forecast = await self.get_forecast(lat, lon, 7)
         if forecast and forecast.get("current"):
             current = forecast["current"]
             result = {
@@ -198,12 +190,7 @@ class WeatherService:
             set_cache(cache_key, result, expire=300)
             return result
 
-        return await self._get_or_fetch(
-            cache_key, OPEN_METEO_FORECAST_URL,
-            {"latitude": str(lat), "longitude": str(lon),
-             "current": CURRENT_PARAMS, "timezone": "auto"},
-            cache_expire=300, post_process=_extract_current,
-        )
+        return None
 
     async def get_forecast(self, lat: float, lon: float, days: int = 7, include_past: bool = True) -> Optional[dict]:
         cache_key = f"weather:forecast:{lat:.2f}:{lon:.2f}:{days}:past={include_past}"
@@ -359,3 +346,23 @@ class WeatherService:
             },
             "generated_at": now.isoformat(),
         }
+
+
+def set_default_location(lat: float, lon: float) -> None:
+    global _default_lat, _default_lon
+    _default_lat = lat
+    _default_lon = lon
+
+
+async def warm_cache() -> None:
+    lat = _default_lat or float(os.getenv("WARMUP_LAT", "19.2183"))
+    lon = _default_lon or float(os.getenv("WARMUP_LON", "72.9781"))
+    svc = WeatherService()
+    try:
+        result = await svc.get_forecast(lat, lon, 7)
+        if result:
+            print(f"Cache warmed for ({lat}, {lon})")
+    except Exception as e:
+        print(f"Cache warmup failed: {e}")
+    finally:
+        await svc.close()
