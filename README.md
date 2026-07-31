@@ -157,7 +157,3 @@ TraceSky/
 Full interactive docs at `{backend-url}/docs` (Swagger UI).
 
 ---
-
-## License
-
-© 2026 TraceSky Labs Inc. All rights reserved.
