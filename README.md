@@ -27,7 +27,7 @@ The full TraceSky walkthrough — plays automatically, loops forever, silent:
   <img src="demo/tracesky-demo.gif" alt="TraceSky live demo — full walkthrough" width="100%" style="max-width: 920px; border-radius: 14px; border: 1px solid #1e293b; box-shadow: 0 20px 60px rgba(0,0,0,0.5);" />
 </div>
 
-> Demo file: [`demo/tracesky-demo.gif`](demo/tracesky-demo.gif)
+> **[Try the live app → trace-sky.vercel.app](https://trace-sky.vercel.app)**
 
 ---
 
