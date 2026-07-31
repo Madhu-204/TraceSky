@@ -65,7 +65,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister, onNa
               <p className="text-[10px] font-bold text-blue-500 tracking-widest uppercase mb-1">Forward-Chaining Engine</p>
               <p className="text-xs text-gray-400">65+ rules across 6 domains evaluated in real time with full traceability.</p>
             </div>
-            <p className="text-[11px] text-gray-500">© 2026 TraceSky Labs Inc.</p>
           </div>
         </div>
 
