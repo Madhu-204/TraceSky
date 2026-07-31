@@ -21,17 +21,13 @@
 
 ## Live Demo
 
-Watch TraceSky in action — the recording below plays inline (click to enable sound):
+The full TraceSky walkthrough — plays automatically, loops forever, silent:
 
 <div align="center">
-<video autoplay muted loop playsinline preload="auto" disablepictureinpicture controlslist="nodownload noplaybackrate" poster="demo/tracesky-demo-poster.png" width="100%" style="max-width: 920px; border-radius: 14px; border: 1px solid #1e293b; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
-  <source src="demo/tracesky-demo.mp4" type="video/mp4">
-  <source src="demo/tracesky-demo.webm" type="video/webm">
-  Your browser does not support the HTML5 video element. [Download the demo](demo/tracesky-demo.mp4)
-</video>
+  <img src="demo/tracesky-demo.gif" alt="TraceSky live demo — full walkthrough" width="100%" style="max-width: 920px; border-radius: 14px; border: 1px solid #1e293b; box-shadow: 0 20px 60px rgba(0,0,0,0.5);" />
 </div>
 
-> Demo video lives in [`demo/`](demo/). Drop-in files: `tracesky-demo.mp4` (+ optional `tracesky-demo.webm` fallback and `tracesky-demo-poster.png` thumbnail).
+> Demo file: [`demo/tracesky-demo.gif`](demo/tracesky-demo.gif)
 
 ---
 
