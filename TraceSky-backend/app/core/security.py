@@ -1,8 +1,8 @@
 import os
 from datetime import datetime, timedelta
 from typing import Optional
+import bcrypt
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,9 +27,6 @@ COOKIE_MAX_AGE = 60 * ACCESS_TOKEN_EXPIRE_MINUTES  # 15 minutes = 900 seconds
 PASSWORD_MIN_LENGTH = 8
 PASSWORD_REGEX = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # ==================== CORS Configuration ====================
 _frontend_url = os.getenv("FRONTEND_URL", "")
 CORS_ORIGINS = [
@@ -49,12 +46,21 @@ GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", f"{_frontend_url}/auth/ca
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8")[:72],
+            hashed_password.encode("utf-8")
+        )
+    except ValueError:
+        return False
 
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(
+        password.encode("utf-8")[:72],
+        bcrypt.gensalt()
+    ).decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

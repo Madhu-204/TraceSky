@@ -13,6 +13,11 @@ config = context.config
 
 database_url = os.getenv("DATABASE_URL")
 if database_url:
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    if database_url.startswith("postgresql") and "sslmode=" not in database_url:
+        separator = "&" if "?" in database_url else "?"
+        database_url = f"{database_url}{separator}sslmode=require"
     config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
