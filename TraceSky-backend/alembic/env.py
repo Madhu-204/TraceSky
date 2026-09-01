@@ -13,11 +13,9 @@ config = context.config
 
 database_url = os.getenv("DATABASE_URL")
 if database_url:
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    if database_url.startswith("postgresql") and "sslmode=" not in database_url:
-        separator = "&" if "?" in database_url else "?"
-        database_url = f"{database_url}{separator}sslmode=require"
+    database_url = normalize_db_url(database_url)
+    if not database_url.startswith("sqlite"):
+        database_url = force_ipv4(database_url)
     config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
@@ -27,7 +25,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from app.database import Base
+from app.database import Base, normalize_db_url, force_ipv4
 from app.models.user import User, RefreshToken, PasswordResetToken
 
 target_metadata = Base.metadata
